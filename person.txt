@@ -1,0 +1,5 @@
+lilei,100
+wang,90
+wang2,72
+wang1,90
+hanmeimei,80

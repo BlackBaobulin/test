@@ -1,0 +1,5 @@
+{"name":"lilei","score":"100"}
+{"name":"wang","score":"90"}
+{"name":"wang2","score":"90"}
+{"name":"wang1","score":"90"}
+{"name":"hanmeimei","score":"80"}
