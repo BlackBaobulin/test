@@ -37,6 +37,7 @@ import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.ShardsIterator;
 import org.elasticsearch.cluster.service.ClusterService;
+import org.elasticsearch.common.CheckedSupplier;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.Writeable;
@@ -51,6 +52,7 @@ import org.elasticsearch.transport.TransportResponseHandler;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
+import java.util.concurrent.ExecutorService;
 
 import static org.elasticsearch.action.support.TransportActions.isShardNotAvailableException;
 
@@ -106,8 +108,11 @@ public abstract class TransportSingleShardAction<Request extends SingleShardRequ
     protected abstract Response shardOperation(Request request, ShardId shardId) throws IOException;
 
     protected void asyncShardOperation(Request request, ShardId shardId, ActionListener<Response> listener) throws IOException {
-        threadPool.executor(getExecutor(request, shardId))
-            .execute(ActionRunnable.supply(listener, () -> shardOperation(request, shardId)));
+        CheckedSupplier supplier = () -> shardOperation(request, shardId);
+        ActionRunnable supply = ActionRunnable.supply(listener, supplier);
+        String executor = getExecutor(request, shardId);
+        ExecutorService executor1 = threadPool.executor(executor);
+        executor1.execute(supply);
     }
 
     protected abstract Writeable.Reader<Response> getResponseReader();
