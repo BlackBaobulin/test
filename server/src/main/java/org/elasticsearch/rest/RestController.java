@@ -305,7 +305,7 @@ public class RestController implements HttpServerTransport.Dispatcher {
                   if (handleNoHandlerFound(rawPath, requestMethod, uri, channel)) {
                       return;
                   }
-                } else {
+                } else {//获取handler
                     dispatchRequest(request, channel, handler);
                     return;
                 }

@@ -48,10 +48,7 @@ import java.io.IOException;
  * on every replication operation, after the last operation completes the global checkpoint could advance but without a follow-up operation
  * the global checkpoint will never be synced to the replicas.
  */
-public class GlobalCheckpointSyncAction extends TransportReplicationAction<
-        GlobalCheckpointSyncAction.Request,
-        GlobalCheckpointSyncAction.Request,
-        ReplicationResponse> {
+public class GlobalCheckpointSyncAction extends TransportReplicationAction<GlobalCheckpointSyncAction.Request, GlobalCheckpointSyncAction.Request,ReplicationResponse> {
 
     public static String ACTION_NAME = "indices:admin/seq_no/global_checkpoint_sync";
 

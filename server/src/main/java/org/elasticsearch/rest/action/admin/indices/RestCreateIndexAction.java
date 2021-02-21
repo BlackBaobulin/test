@@ -62,7 +62,7 @@ public class RestCreateIndexAction extends BaseRestHandler {
         }
 
         CreateIndexRequest createIndexRequest = new CreateIndexRequest(request.param("index"));
-
+        //解析请求中的配置内容，并添加到settings类变量中
         if (request.hasContent()) {
             Map<String, Object> sourceAsMap = XContentHelper.convertToMap(request.requiredContent(), false,
                 request.getXContentType()).v2();

@@ -174,7 +174,7 @@ public abstract class TransportMasterNodeAction<Request extends MasterNodeReques
                         logger.debug("no known master node, scheduling a retry");
                         retry(null, masterChangePredicate);
                     } else {
-                        DiscoveryNode masterNode = nodes.getMasterNode();
+                        DiscoveryNode masterNode = nodes.getMasterNode();//获取同步后到主节点
                         final String actionName = getMasterActionName(masterNode);
                         transportService.sendRequest(masterNode, actionName, request,
                             new ActionListenerResponseHandler<Response>(listener, TransportMasterNodeAction.this::read) {
