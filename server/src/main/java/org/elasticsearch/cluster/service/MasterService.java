@@ -58,12 +58,7 @@ import org.elasticsearch.node.Node;
 import org.elasticsearch.threadpool.Scheduler;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -199,16 +194,18 @@ public class MasterService extends AbstractLifecycleComponent {
         return true;
     }
 
+    //主节点执行索引创建操作
     private void runTasks(TaskInputs taskInputs) {
         final String summary = taskInputs.summary;
+        //检查是否初次执行
         if (!lifecycle.started()) {
             logger.debug("processing [{}]: ignoring, master service not started", summary);
             return;
         }
-
+        //
         logger.debug("executing cluster state update for [{}]", summary);
         final ClusterState previousClusterState = state();
-
+        //检查当前节点是否还是master
         if (!previousClusterState.nodes().isLocalNodeElectedMaster() && taskInputs.runOnlyWhenMaster()) {
             logger.debug("failing [{}]: local node is no longer master", summary);
             taskInputs.onNoLongerMaster();
@@ -216,17 +213,21 @@ public class MasterService extends AbstractLifecycleComponent {
         }
 
         final long computationStartTime = threadPool.relativeTimeInMillis();
+        //索引创建执行
         final TaskOutputs taskOutputs = calculateTaskOutputs(taskInputs, previousClusterState);
         taskOutputs.notifyFailedTasks();
+        //获取执行时间
         final TimeValue computationTime = getTimeSince(computationStartTime);
         logExecutionTime(computationTime, "compute cluster state update", summary);
 
         if (taskOutputs.clusterStateUnchanged()) {
+            //集群状态未更新，调用补救措施
             final long notificationStartTime = threadPool.relativeTimeInMillis();
             taskOutputs.notifySuccessfulTasksOnUnchangedClusterState();
             final TimeValue executionTime = getTimeSince(notificationStartTime);
             logExecutionTime(executionTime, "notify listeners on unchanged cluster state", summary);
         } else {
+            //状态更新成功，发布最新状态到其他节点
             final ClusterState newClusterState = taskOutputs.newClusterState;
             if (logger.isTraceEnabled()) {
                 logger.trace("cluster state updated, source [{}]\n{}", summary, newClusterState);
@@ -791,10 +792,17 @@ public class MasterService extends AbstractLifecycleComponent {
         final Supplier<ThreadContext.StoredContext> supplier = threadContext.newRestorableContext(true);
         try (ThreadContext.StoredContext ignore = threadContext.stashContext()) {
             threadContext.markAsSystemContext();
-
-            List<Batcher.UpdateTask> safeTasks = tasks.entrySet().stream()
-                .map(e -> taskBatcher.new UpdateTask(config.priority(), source, e.getKey(), safe(e.getValue(), supplier), executor))
-                .collect(Collectors.toList());
+            List<Batcher.UpdateTask> safeTasks = new ArrayList<>();
+            Set<Map.Entry<T, ClusterStateTaskListener>> entries = tasks.entrySet();
+            for (Map.Entry<T, ClusterStateTaskListener> entry : entries) {
+                T key = entry.getKey();
+                ClusterStateTaskListener value = entry.getValue();
+                Batcher.UpdateTask updateTask = taskBatcher.new UpdateTask(config.priority(), source, key, safe(value, supplier), executor);
+                safeTasks.add(updateTask);
+            }
+//            safeTasks = entries.stream()
+//                .map(e -> taskBatcher.new UpdateTask(config.priority(), source, e.getKey(), safe(e.getValue(), supplier), executor))
+//                .collect(Collectors.toList());
             taskBatcher.submitTasks(safeTasks, config.timeout());
         } catch (EsRejectedExecutionException e) {
             // ignore cases where we are shutting down..., there is really nothing interesting

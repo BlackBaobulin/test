@@ -412,7 +412,7 @@ public class AllocationService {
         removeDelayMarkers(allocation);
         // try to allocate existing shard copies first
         gatewayAllocator.allocateUnassigned(allocation);
-
+//#======================根据集群状态，确定分配分配方案
         shardsAllocator.allocate(allocation);
         assert RoutingNodes.assertShardStats(allocation.routingNodes());
     }

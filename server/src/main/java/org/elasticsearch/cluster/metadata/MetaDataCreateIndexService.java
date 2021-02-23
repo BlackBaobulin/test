@@ -283,14 +283,14 @@ public class MetaDataCreateIndexService {
 
         final Settings aggregatedIndexSettings =
             aggregateIndexSettings(currentState, request, templates, mappings, sourceMetaData, settings, indexScopedSettings);
-        int routingNumShards = getIndexNumberOfRoutingShards(aggregatedIndexSettings, sourceMetaData);
+        int routingNumShards = getIndexNumberOfRoutingShards(aggregatedIndexSettings, sourceMetaData);//数位运算作用？
 
         // remove the setting it's temporary and is only relevant once we create the index
         final Settings.Builder settingsBuilder = Settings.builder().put(aggregatedIndexSettings);
         settingsBuilder.remove(IndexMetaData.INDEX_NUMBER_OF_ROUTING_SHARDS_SETTING.getKey());
         final Settings indexSettings = settingsBuilder.build();
 
-        try {
+        try {//创建索引服务
             final IndexService indexService = validateActiveShardCountAndCreateIndexService(request.index(), request.waitForActiveShards(),
                 indexSettings, routingNumShards, indicesService);
             // create the index here (on the master) to validate it can be created, as well as adding the mapping
@@ -312,7 +312,7 @@ public class MetaDataCreateIndexService {
 
             final IndexMetaData indexMetaData;
             try {
-                MapperService mapperService = indexService.mapperService();
+                MapperService mapperService = indexService.mapperService();//构建索引元数据
                 indexMetaData = buildIndexMetaData(request.index(), aliases, mapperService::documentMapper,
                     () -> mapperService.documentMapper(MapperService.DEFAULT_MAPPING), indexSettings, routingNumShards, sourceMetaData);
             } catch (Exception e) {
