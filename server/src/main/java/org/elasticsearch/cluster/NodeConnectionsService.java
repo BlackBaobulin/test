@@ -195,8 +195,7 @@ public class NodeConnectionsService extends AbstractLifecycleComponent {
                 runnables.add(onCompletion);
             } else {
                 logger.trace("connectDisconnectedTargets: {}", targetsByNode);
-                final GroupedActionListener<Void> listener = new GroupedActionListener<>(
-                    ActionListener.wrap(onCompletion), connectionTargets.size());
+                final GroupedActionListener<Void> listener = new GroupedActionListener<>(ActionListener.wrap(onCompletion), connectionTargets.size());
                 for (final ConnectionTarget connectionTarget : connectionTargets) {
                     runnables.add(connectionTarget.ensureConnected(listener));
                 }

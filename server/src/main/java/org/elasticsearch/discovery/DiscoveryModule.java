@@ -99,7 +99,8 @@ public class DiscoveryModule {
         final Map<String, ElectionStrategy> electionStrategies = new HashMap<>();
         electionStrategies.put(DEFAULT_ELECTION_STRATEGY, ElectionStrategy.DEFAULT_INSTANCE);
         for (DiscoveryPlugin plugin : plugins) {
-            plugin.getSeedHostProviders(transportService, networkService).forEach((key, value) -> {
+            Map<String, Supplier<SeedHostsProvider>> seedHostProviders = plugin.getSeedHostProviders(transportService, networkService);
+            seedHostProviders.forEach((key, value) -> {
                 if (hostProviders.put(key, value) != null) {
                     throw new IllegalArgumentException("Cannot register seed provider [" + key + "] twice");
                 }
@@ -114,7 +115,7 @@ public class DiscoveryModule {
                 }
             });
         }
-//  获取种子节点
+        //  获取种子节点
         List<String> seedProviderNames = getSeedProviderNames(settings);
         // for bwc purposes, add settings provider even if not explicitly specified
         if (seedProviderNames.contains("settings") == false) {
@@ -129,7 +130,7 @@ public class DiscoveryModule {
         if (missingProviderNames.isEmpty() == false) {
             throw new IllegalArgumentException("Unknown seed providers " + missingProviderNames);
         }
-
+        //从配置中获取host
         List<SeedHostsProvider> filteredSeedProviders = seedProviderNames.stream()
             .map(hostProviders::get).map(Supplier::get).collect(Collectors.toList());
 
@@ -138,7 +139,8 @@ public class DiscoveryModule {
         final SeedHostsProvider seedHostsProvider = hostsResolver -> {
             final List<TransportAddress> addresses = new ArrayList<>();
             for (SeedHostsProvider provider : filteredSeedProviders) {
-                addresses.addAll(provider.getSeedAddresses(hostsResolver));
+                List<TransportAddress> seedAddresses = provider.getSeedAddresses(hostsResolver);
+                addresses.addAll(seedAddresses);
             }
             return Collections.unmodifiableList(addresses);
         };
@@ -147,7 +149,7 @@ public class DiscoveryModule {
         if (electionStrategy == null) {
             throw new IllegalArgumentException("Unknown election strategy " + ELECTION_STRATEGY_SETTING.get(settings));
         }
-        //初始化发现业务
+        //集群节点发现和状态同步维护模块
         if (ZEN2_DISCOVERY_TYPE.equals(discoveryType) || SINGLE_NODE_DISCOVERY_TYPE.equals(discoveryType)) {
             discovery = new Coordinator(NODE_NAME_SETTING.get(settings),
                 settings, clusterSettings,

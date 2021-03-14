@@ -30,6 +30,7 @@ import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.CancellableThreads;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
+import org.elasticsearch.common.util.concurrent.EsThreadPoolExecutor;
 import org.elasticsearch.discovery.PeerFinder.ConfiguredHostsResolver;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
@@ -190,8 +191,9 @@ public class SeedHostsResolver extends AbstractLifecycleComponent implements Con
     protected void doStart() {
         logger.debug("using max_concurrent_resolvers [{}], resolver timeout [{}]", concurrentConnects, resolveTimeout);
         final ThreadFactory threadFactory = EsExecutors.daemonThreadFactory(settings, "[unicast_configured_hosts_resolver]");
-        executorService.set(EsExecutors.newScaling(nodeName + "/" + "unicast_configured_hosts_resolver",
-            0, concurrentConnects, 60, TimeUnit.SECONDS, threadFactory, transportService.getThreadPool().getThreadContext()));
+        EsThreadPoolExecutor esThreadPoolExecutor = EsExecutors.newScaling(nodeName + "/" + "unicast_configured_hosts_resolver",
+            0, concurrentConnects, 60, TimeUnit.SECONDS, threadFactory, transportService.getThreadPool().getThreadContext());
+        executorService.set(esThreadPoolExecutor);
     }
 
     @Override
@@ -212,6 +214,10 @@ public class SeedHostsResolver extends AbstractLifecycleComponent implements Con
         }
 
         if (resolveInProgress.compareAndSet(false, true)) {
+//            SeedHostsProvider.HostsResolver hostsResolver = hosts ->resolveHostsLists(cancellableThreads, executorService.get(), logger, hosts, transportService, resolveTimeout);
+//            List<TransportAddress> providedAddresses= hostsProvider.getSeedAddresses(hostsResolver);
+//
+//            consumer.accept(providedAddresses);
             transportService.getThreadPool().generic().execute(new AbstractRunnable() {
                 @Override
                 public void onFailure(Exception e) {
@@ -224,10 +230,8 @@ public class SeedHostsResolver extends AbstractLifecycleComponent implements Con
                         logger.debug("resolveConfiguredHosts.doRun: lifecycle is {}, not proceeding", lifecycle);
                         return;
                     }
-
-                    List<TransportAddress> providedAddresses
-                        = hostsProvider.getSeedAddresses(hosts ->
-                            resolveHostsLists(cancellableThreads, executorService.get(), logger, hosts, transportService, resolveTimeout));
+                    SeedHostsProvider.HostsResolver hostsResolver = hosts ->resolveHostsLists(cancellableThreads, executorService.get(), logger, hosts, transportService, resolveTimeout);
+                    List<TransportAddress> providedAddresses= hostsProvider.getSeedAddresses(hostsResolver);
 
                     consumer.accept(providedAddresses);
                 }

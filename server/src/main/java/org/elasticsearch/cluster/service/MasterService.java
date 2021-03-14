@@ -700,7 +700,7 @@ public class MasterService extends AbstractLifecycleComponent {
         ClusterTasksResult<Object> clusterTasksResult;
         try {
             List<Object> inputs = taskInputs.updateTasks.stream().map(tUpdateTask -> tUpdateTask.task).collect(Collectors.toList());
-            clusterTasksResult = taskInputs.executor.execute(previousClusterState, inputs);
+            clusterTasksResult = taskInputs.executor.execute(previousClusterState, inputs);//创建索引并更新当前节点的集群状态
             if (previousClusterState != clusterTasksResult.resultingState &&
                 previousClusterState.nodes().isLocalNodeElectedMaster() &&
                 (clusterTasksResult.resultingState.nodes().isLocalNodeElectedMaster() == false)) {

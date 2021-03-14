@@ -49,7 +49,7 @@ final class Netty4MessageChannelHandler extends ChannelDuplexHandler {
     Netty4MessageChannelHandler(Netty4Transport transport) {
         this.transport = transport;
     }
-
+    //内部通信netty入口
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
         assert Transports.assertTransportThread();

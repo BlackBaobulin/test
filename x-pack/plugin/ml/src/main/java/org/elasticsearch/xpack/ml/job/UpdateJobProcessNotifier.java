@@ -90,10 +90,13 @@ public class UpdateJobProcessNotifier {
         }
     }
 
+    /**
+     * 主节点 按照顺序 处理配置更新，探测器更新，过滤器更新等
+     */
     private void processNextUpdate() {
         List<UpdateHolder> updates = new ArrayList<>(orderedJobUpdates.size());
         try {
-            orderedJobUpdates.drainTo(updates);
+            orderedJobUpdates.drainTo(updates);//获取队列中所有需要执行到任务
             executeProcessUpdates(new VolatileCursorIterator<>(updates));
         } catch (Exception e) {
             logger.error("Error while processing next job update", e);
@@ -107,6 +110,7 @@ public class UpdateJobProcessNotifier {
         UpdateHolder updateHolder = updatesIterator.next();
         UpdateParams update = updateHolder.update;
 
+        //1。更新job 配置，2。并且当前节点不是主节点，执行下一个更新
         if (update.isJobUpdate() && clusterService.localNode().isMasterNode() == false) {
             assert clusterService.localNode().isMasterNode();
             logger.error("Job update was submitted to non-master node [" + clusterService.getNodeName() + "]; update for job ["

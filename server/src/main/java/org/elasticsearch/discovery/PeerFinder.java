@@ -252,11 +252,13 @@ public abstract class PeerFinder {
     }
 
     /**
+     * 通过定时执行，监测并维护一批稳定连接到集群到对等链接（只会监测配置的广播地址）
      * @return whether any peers were removed due to disconnection
      */
     private boolean handleWakeUp() {
         assert holdsLock() : "PeerFinder mutex not held";
 
+        //剔除离线链接
         final boolean peersRemoved = peersByAddress.values().removeIf(Peer::handleWakeUp);
 
         if (active == false) {
@@ -264,11 +266,13 @@ public abstract class PeerFinder {
             return peersRemoved;
         }
 
+        //探测主节点
         logger.trace("probing master nodes from cluster state: {}", lastAcceptedNodes);
         for (ObjectCursor<DiscoveryNode> discoveryNodeObjectCursor : lastAcceptedNodes.getMasterNodes().values()) {
             startProbe(discoveryNodeObjectCursor.value.getAddress());
         }
 
+        //探测配置节点是否已经连接
         configuredHostsResolver.resolveConfiguredHosts(providedAddresses -> {
             synchronized (mutex) {
                 lastResolvedAddresses = providedAddresses;
@@ -276,7 +280,7 @@ public abstract class PeerFinder {
                 providedAddresses.forEach(this::startProbe);
             }
         });
-
+        //定期执行下一个循环
         transportService.getThreadPool().scheduleUnlessShuttingDown(findPeersInterval, Names.GENERIC, new AbstractRunnable() {
             @Override
             public boolean isForceExecution() {
@@ -325,6 +329,9 @@ public abstract class PeerFinder {
 
     private class Peer {
         private final TransportAddress transportAddress;
+        /**
+         * 维护已经发现的并建立稳定链接的远程节点
+         */
         private SetOnce<DiscoveryNode> discoveryNode = new SetOnce<>();
         private volatile boolean peersRequestInFlight;
 
@@ -336,7 +343,7 @@ public abstract class PeerFinder {
         DiscoveryNode getDiscoveryNode() {
             return discoveryNode.get();
         }
-
+        //
         boolean handleWakeUp() {
             assert holdsLock() : "PeerFinder mutex not held";
 
@@ -344,6 +351,7 @@ public abstract class PeerFinder {
                 return true;
             }
 
+            //已连接节点
             final DiscoveryNode discoveryNode = getDiscoveryNode();
             // may be null if connection not yet established
 
@@ -395,7 +403,7 @@ public abstract class PeerFinder {
                 }
             });
         }
-
+        //请求每个已知节点，并将已知节点加入存储队列中
         private void requestPeers() {
             assert holdsLock() : "PeerFinder mutex not held";
             assert peersRequestInFlight == false : "PeersRequest already in flight";

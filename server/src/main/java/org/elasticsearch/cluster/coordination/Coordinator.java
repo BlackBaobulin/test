@@ -58,7 +58,6 @@ import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.ListenableFuture;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
@@ -124,6 +123,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
     // TODO: the following field is package-private as some tests require access to it
     // These tests can be rewritten to use public methods once Coordinator is more feature-complete
     final Object mutex = new Object();
+    //持久化节点信息+当前节点信息
     private final SetOnce<CoordinationState> coordinationState = new SetOnce<>(); // initialized on start-up (see doStart)
     private volatile ClusterState applierState; // the state that should be exposed to the cluster state applier
 
@@ -531,6 +531,14 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
         }
     }
 
+    /**
+     * 初始化成为候选人
+     * 清空leader记录
+     * 清空follower记录
+     * 清除滞后节点记录
+     * 启动选举功能
+     * @param method
+     */
     void becomeCandidate(String method) {
         assert Thread.holdsLock(mutex) : "Coordinator mutex not held";
         logger.debug("{}: coordinator becoming CANDIDATE in term {} (was {}, lastKnownLeader was [{}])",
@@ -542,8 +550,9 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
             cancelActivePublication("become candidate: " + method);
             joinAccumulator.close(mode);
             joinAccumulator = joinHelper.new CandidateJoinAccumulator();
-
+            //启动节点探测功能，启动选举功能
             peerFinder.activate(coordinationState.get().getLastAcceptedState().nodes());
+            //加入集群请求失败记录处理（打印日志）定时10s执行一次，
             clusterFormationFailureHelper.start();
 
             if (getCurrentTerm() == ZEN1_BWC_TERM) {
@@ -687,7 +696,9 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
     @Override
     protected void doStart() {
         synchronized (mutex) {
+            //获取gateway之前加载到本地持久化元数据信息
             CoordinationState.PersistedState persistedState = persistedStateSupplier.get();
+
             coordinationState.set(new CoordinationState(getLocalNode(), persistedState, electionStrategy));
             peerFinder.setCurrentTerm(getCurrentTerm());
             configuredHostsResolver.start();
@@ -1158,7 +1169,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
                 super.startProbe(transportAddress);
             }
         }
-
+    //并发访问时，peer到数量状态可能会随时变化，所以只是对当前获取结果的处理，每次都使用新的对象，新的状态，即使是并发时，也不会因为时间顺序无法保证，导致集群状态错误
         @Override
         protected void onFoundPeersUpdated() {
             synchronized (mutex) {
@@ -1168,7 +1179,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
                     foundPeers.forEach(expectedVotes::addVote);
                     expectedVotes.addVote(Coordinator.this.getLocalNode());
                     final boolean foundQuorum = coordinationState.get().isElectionQuorum(expectedVotes);
-
+                    //合法人数超过最低限制，开始选举任务
                     if (foundQuorum) {
                         if (electionScheduler == null) {
                             startElectionScheduler();
@@ -1182,7 +1193,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
             clusterBootstrapService.onFoundPeersUpdated();
         }
     }
-
+//开始选举定时任务，无限执行
     private void startElectionScheduler() {
         assert electionScheduler == null : electionScheduler;
 
@@ -1191,7 +1202,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
         }
 
         final TimeValue gracePeriod = TimeValue.ZERO; // TODO variable grace period
-        electionScheduler = electionSchedulerFactory.startElectionScheduler(gracePeriod, new Runnable() {
+        electionScheduler = electionSchedulerFactory.startElectionScheduler(gracePeriod, new Runnable() {//选举线程
             @Override
             public void run() {
                 synchronized (mutex) {

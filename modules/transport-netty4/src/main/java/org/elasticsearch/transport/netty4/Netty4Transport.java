@@ -121,7 +121,7 @@ public class Netty4Transport extends TcpTransport {
                 (int) receivePredictorMin.getBytes(), (int) receivePredictorMax.getBytes());
         }
     }
-
+    //内部通信netty启动
     @Override
     protected void doStart() {
         boolean success = false;
@@ -195,7 +195,7 @@ public class Netty4Transport extends TcpTransport {
 
         return bootstrap;
     }
-
+    //内部通信使用的网络链接创建
     private void createServerBootstrap(ProfileSettings profileSettings, NioEventLoopGroup eventLoopGroup) {
         String name = profileSettings.profileName;
         if (logger.isDebugEnabled()) {

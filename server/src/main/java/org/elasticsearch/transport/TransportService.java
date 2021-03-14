@@ -70,7 +70,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-
+//系统内部通信服务
 public class TransportService extends AbstractLifecycleComponent implements TransportMessageListener, TransportConnectionListener {
     private static final Logger logger = LogManager.getLogger(TransportService.class);
 
@@ -227,7 +227,7 @@ public class TransportService extends AbstractLifecycleComponent implements Tran
     protected void doStart() {
         transport.setMessageListener(this);
         connectionManager.addListener(this);
-        transport.start();
+        transport.start();//启动内部网络服务
         if (transport.boundAddress() != null && logger.isInfoEnabled()) {
             logger.info("{}", transport.boundAddress());
             for (Map.Entry<String, BoundTransportAddress> entry : transport.profileBoundAddresses().entrySet()) {
@@ -235,7 +235,7 @@ public class TransportService extends AbstractLifecycleComponent implements Tran
             }
         }
         localNode = localNodeFactory.apply(transport.boundAddress());
-
+        //链接到集群
         if (connectToRemoteCluster) {
             // here we start to connect to the remote clusters
             remoteClusterService.initializeRemoteClusters();

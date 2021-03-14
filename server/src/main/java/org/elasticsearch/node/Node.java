@@ -405,7 +405,7 @@ public class Node implements Closeable {
             CircuitBreakerService circuitBreakerService = createCircuitBreakerService(settingsModule.getSettings(),
                 settingsModule.getClusterSettings());
             resourcesToClose.add(circuitBreakerService);
-            //网关模块初始化
+            //本地数据管理模块初始化
             modules.add(new GatewayModule());
 
             //并发缓存页初始化
@@ -514,6 +514,7 @@ public class Node implements Closeable {
                 pluginsService.filterPlugins(ActionPlugin.class).stream().flatMap(p -> p.getTaskHeaders().stream()),
                 Stream.of(Task.X_OPAQUE_ID)
             ).collect(Collectors.toSet());
+            //内部通信使用transport
             final TransportService transportService = newTransportService(settings, transport, threadPool,
                 networkModule.getTransportInterceptor(), localNodeFactory, settingsModule.getClusterSettings(), taskHeaders);
             //元数据初始化
@@ -523,7 +524,7 @@ public class Node implements Closeable {
             //检索执行状态信息收集统计
             final SearchTransportService searchTransportService =  new SearchTransportService(transportService,
                 SearchExecutionStatsCollector.makeWrapper(responseCollectorService));
-            //transport服务，上面已有，作用分别是？
+            //接口transport服务，上
             final HttpServerTransport httpServerTransport = newHttpTransport(networkModule);
 
 
@@ -729,7 +730,7 @@ public class Node implements Closeable {
         final ClusterService clusterService = injector.getInstance(ClusterService.class);
 
         final NodeConnectionsService nodeConnectionsService = injector.getInstance(NodeConnectionsService.class);
-        nodeConnectionsService.start();
+        nodeConnectionsService.start();//node定时无限重连功能启动
         clusterService.setNodeConnectionsService(nodeConnectionsService);
 
         injector.getInstance(ResourceWatcherService.class).start();
@@ -740,13 +741,14 @@ public class Node implements Closeable {
         // Start the transport service now so the publish address will be added to the local disco node in ClusterService
         TransportService transportService = injector.getInstance(TransportService.class);
         transportService.getTaskManager().setTaskResultsService(injector.getInstance(TaskResultsService.class));
+        //集群内部网络服务启动
         transportService.start();
         assert localNodeFactory.getNode() != null;
         assert transportService.getLocalNode().equals(localNodeFactory.getNode())
             : "transportService has a different local node than the factory provided";
         injector.getInstance(PeerRecoverySourceService.class).start();
 
-        // Load (and maybe upgrade) the metadata stored on disk
+        // Load (and maybe upgrade) the metadata stored on disk（加载或者初始化）
         final GatewayMetaState gatewayMetaState = injector.getInstance(GatewayMetaState.class);
         gatewayMetaState.start(settings(), transportService, clusterService, injector.getInstance(MetaStateService.class),
             injector.getInstance(MetaDataIndexUpgradeService.class), injector.getInstance(MetaDataUpgrader.class),
@@ -776,24 +778,35 @@ public class Node implements Closeable {
 
         clusterService.addStateApplier(transportService.getTaskManager());
         // start after transport service so the local disco is known
+        //初始化集群状态，将上一步加载到本地元数据赋给coordinator，方便后面选举加入集群使用
         discovery.start(); // start before cluster service so that it can set initial state on ClusterApplierService
+        //初始化集群服务，只做线程资源初始化，并初始化服务运行所需要到基本数据，《延迟处理更新操作。。。？》
         clusterService.start();
         assert clusterService.localNode().equals(localNodeFactory.getNode())
             : "clusterService has a different local node than the factory provided";
+        //开始接收请求（集群内部通信控制开关）
         transportService.acceptIncomingRequests();
+        /**
+         *  问题1：在此之前，集群状态是否会受其他节点影像，比如开始接收请求，但是为执行下面的初始化
+         *  其他集群根据配置文件并请求此节点
+         *  问题2：集群状态的获取调度流程
+         */
+        //初始化集群选举状态，并触发第一次加入集群监测循环，如果节点数量符合条件，则开始选举
         discovery.startInitialJoin();
         final TimeValue initialStateTimeout = DiscoverySettings.INITIAL_STATE_TIMEOUT_SETTING.get(settings());
         configureNodeAndClusterIdStateListener(clusterService);
-
+        //等待当前节点加入集群
         if (initialStateTimeout.millis() > 0) {
             final ThreadPool thread = injector.getInstance(ThreadPool.class);
             ClusterState clusterState = clusterService.state();
             ClusterStateObserver observer =
                 new ClusterStateObserver(clusterState, clusterService, null, logger, thread.getThreadContext());
 
+            //未获取到主节点时，阻塞等待
             if (clusterState.nodes().getMasterNodeId() == null) {
                 logger.debug("waiting to join the cluster. timeout [{}]", initialStateTimeout);
                 final CountDownLatch latch = new CountDownLatch(1);
+                //通过给集群状态服务添加监听器，当集群状态变更时会调用此监听器，通过判断是否有主节点确定是否满足条件，满足条件则回调此方法，并继续执行
                 observer.waitForNextChange(new ClusterStateObserver.Listener() {
                     @Override
                     public void onNewClusterState(ClusterState state) { latch.countDown(); }
@@ -818,7 +831,7 @@ public class Node implements Closeable {
                 }
             }
         }
-
+        //启动接口服务
         injector.getInstance(HttpServerTransport.class).start();
 
         if (WRITE_PORTS_FILE_SETTING.get(settings())) {
@@ -829,7 +842,7 @@ public class Node implements Closeable {
         }
 
         logger.info("started");
-
+        //es初始化后，进行插件的部分操作
         pluginsService.filterPlugins(ClusterPlugin.class).forEach(ClusterPlugin::onNodeStarted);
 
         return this;

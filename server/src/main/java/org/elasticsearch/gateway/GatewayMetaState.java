@@ -99,7 +99,7 @@ public class GatewayMetaState implements Closeable {
                       MetaStateService metaStateService, MetaDataIndexUpgradeService metaDataIndexUpgradeService,
                       MetaDataUpgrader metaDataUpgrader, PersistedClusterStateService persistedClusterStateService) {
         assert persistedState.get() == null : "should only start once, but already have " + persistedState.get();
-
+            //使用legacy-zen选举方式
         if (DiscoveryModule.DISCOVERY_TYPE_SETTING.get(settings).equals(DiscoveryModule.ZEN_DISCOVERY_TYPE)) {
             // only for tests that simulate mixed Zen1/Zen2 clusters, see Zen1IT
             final Tuple<Manifest, MetaData> manifestClusterStateTuple;
@@ -127,15 +127,17 @@ public class GatewayMetaState implements Closeable {
             return;
         }
 
-        //加载lucence中的当前版本的元数据
+        //主节点和数据节点需要加载lucence中的当前版本的元数据，或者将当前集群状态初始化到磁盘
         if (DiscoveryNode.isMasterNode(settings) || DiscoveryNode.isDataNode(settings)) {
             try {
+                //加载节点+索引+shard三种集群状态，分别对应_state/下面不同到文件或者目录
                 final PersistedClusterStateService.OnDiskState onDiskState = persistedClusterStateService.loadBestOnDiskState();
 
                 MetaData metaData = onDiskState.metaData;
                 long lastAcceptedVersion = onDiskState.lastAcceptedVersion;
                 long currentTerm = onDiskState.currentTerm;
 
+                //如果从没有持久化过集群状态，使用节点级别的元数据进行初始化
                 if (onDiskState.empty()) {
                     assert Version.CURRENT.major <= Version.V_7_0_0.major + 1 :
                         "legacy metadata loader is not needed anymore from v9 onwards";
@@ -182,6 +184,7 @@ public class GatewayMetaState implements Closeable {
                 throw new ElasticsearchException("failed to load metadata", e);
             }
         } else {
+            //协调节点需要将nodeId持久化，但不需要持久化元数据
             final long currentTerm = 0L;
             final ClusterState clusterState = ClusterState.builder(ClusterName.CLUSTER_NAME_SETTING.get(settings)).build();
             if (persistedClusterStateService.getDataPaths().length > 0) {

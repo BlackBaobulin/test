@@ -772,7 +772,7 @@ public class BalancedShardsAllocator implements ShardsAllocator {
             /*
              * TODO: We could be smarter here and group the shards by index and then
              * use the sorter to save some iterations.
-             */
+             *///1。主分片在前，负分片在后，2。相同索引，分片主副相同时，shardId从小到大排列，3。否则使用线程比较器进行比较排序
             final AllocationDeciders deciders = allocation.deciders();
             final PriorityComparator secondaryComparator = PriorityComparator.getAllocationComparator(allocation);
             final Comparator<ShardRouting> comparator = (o1, o2) -> {
@@ -890,7 +890,7 @@ public class BalancedShardsAllocator implements ShardsAllocator {
             }
 
             final boolean explain = allocation.debugDecision();
-            Decision shardLevelDecision = allocation.deciders().canAllocate(shard, allocation);
+            Decision shardLevelDecision = allocation.deciders().canAllocate(shard, allocation);//16中决策器的作用
             if (shardLevelDecision.type() == Type.NO && explain == false) {
                 // NO decision for allocating the shard, irrespective of any particular node, so exit early
                 return AllocateUnassignedDecision.no(AllocationStatus.DECIDERS_NO, null);

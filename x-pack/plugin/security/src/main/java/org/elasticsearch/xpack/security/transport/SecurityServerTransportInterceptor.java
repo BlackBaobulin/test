@@ -110,7 +110,7 @@ public class SecurityServerTransportInterceptor implements TransportInterceptor 
 
                 // Sometimes a system action gets executed like a internal create index request or update mappings request
                 // which means that the user is copied over to system actions so we need to change the user
-                if (AuthorizationUtils.shouldReplaceUserWithSystem(threadPool.getThreadContext(), action)) {
+                if (AuthorizationUtils.shouldReplaceUserWithSystem(threadPool.getThreadContext(), action)) {//判断当前用户操作是否有系统级别的权限
                     securityContext.executeAsUser(SystemUser.INSTANCE, (original) -> sendWithUser(connection, action, request, options,
                             new ContextRestoreResponseHandler<>(threadPool.getThreadContext().wrapRestorable(original)
                                     , handler), sender, requireAuth), minVersion);

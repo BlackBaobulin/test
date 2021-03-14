@@ -89,6 +89,9 @@ public class JoinHelper {
 
     private final Set<Tuple<DiscoveryNode, JoinRequest>> pendingOutgoingJoins = Collections.synchronizedSet(new HashSet<>());
 
+    /**
+     * 记录上次失败的集群加入请求
+     */
     private AtomicReference<FailedJoinAttempt> lastFailedJoinAttempt = new AtomicReference<>();
 
     JoinHelper(Settings settings, AllocationService allocationService, MasterService masterService,
