@@ -152,15 +152,17 @@ public class VotingOnlyNodePlugin extends Plugin implements DiscoveryPlugin, Net
                 if (joinVotes.nodes().stream().filter(DiscoveryNode::isMasterNode).allMatch(VotingOnlyNodePlugin::isVotingOnlyNode)) {
                     return false;
                 }
-                // if there's a vote from a full master node with same state (i.e. last accepted term and version match), then that node
-                // should become master instead, so we should stand down. There are two exceptional cases, however:
-                // 1) if we are in term 0. In that case, we allow electing the voting-only node to avoid poisonous situations where only
-                //    voting-only nodes are bootstrapped.
-                // 2) if there is another full master node with an older state. In that case, we ensure that
-                //    satisfiesAdditionalQuorumConstraints cannot go from true to false when adding new joinVotes in the same election.
-                //    As voting-only nodes only broadcast the state to the full master nodes, eventually all of them will have caught up
-                //    and there should not be any remaining full master nodes with older state, effectively disabling election of
-                //    voting-only nodes.
+                /**
+                 * if there's a vote from a full master node with same state (i.e. last accepted term and version match), then that node
+                 * should become master instead, so we should stand down. There are two exceptional cases, however:
+                 * 1) if we are in term 0. In that case, we allow electing the voting-only node to avoid poisonous situations where only
+                 *    voting-only nodes are bootstrapped.
+                 * 2) if there is another full master node with an older state. In that case, we ensure that
+                 *    satisfiesAdditionalQuorumConstraints cannot go from true to false when adding new joinVotes in the same election.
+                 *    As voting-only nodes only broadcast the state to the full master nodes, eventually all of them will have caught up
+                 *    and there should not be any remaining full master nodes with older state, effectively disabling election of
+                 *    voting-only nodes.
+                 */
                 if (joinVotes.getJoins().stream().anyMatch(fullMasterWithSameState(localAcceptedTerm, localAcceptedVersion)) &&
                     localAcceptedTerm > 0 &&
                     joinVotes.getJoins().stream().noneMatch(fullMasterWithOlderState(localAcceptedTerm, localAcceptedVersion))) {

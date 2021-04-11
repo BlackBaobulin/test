@@ -58,6 +58,7 @@ import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.util.concurrent.ListenableFuture;
 import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
@@ -173,8 +174,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
         this.singleNodeDiscovery = DiscoveryModule.SINGLE_NODE_DISCOVERY_TYPE.equals(DiscoveryModule.DISCOVERY_TYPE_SETTING.get(settings));
         this.electionStrategy = electionStrategy;
         this.joinHelper = new JoinHelper(settings, allocationService, masterService, transportService,
-            this::getCurrentTerm, this::getStateForMasterService, this::handleJoinRequest, this::joinLeaderInTerm, this.onJoinValidators,
-            rerouteService);
+            this::getCurrentTerm, this::getStateForMasterService, this::handleJoinRequest, this::joinLeaderInTerm, this.onJoinValidators, rerouteService);
         this.persistedStateSupplier = persistedStateSupplier;
         this.noMasterBlockService = new NoMasterBlockService(settings, clusterSettings);
         this.lastKnownLeader = Optional.empty();
@@ -364,6 +364,10 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
         }
     }
 
+    /**
+     * 旧节点重新连接，如果当前节点是leader，且版本号小于旧节点，同时么有将当前状态发步到其他节点。就会触发重新选举
+     * @param term
+     */
     private void updateMaxTermSeen(final long term) {
         synchronized (mutex) {
             maxTermSeen = Math.max(maxTermSeen, term);
@@ -464,6 +468,11 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
     }
 
 
+    /**
+     * 主节点处理其他节点申请加入请求
+     * @param joinRequest
+     * @param joinCallback
+     */
     private void handleJoinRequest(JoinRequest joinRequest, JoinHelper.JoinCallback joinCallback) {
         assert Thread.holdsLock(mutex) == false;
         assert getLocalNode().isMasterNode() : getLocalNode() + " received a join but is not master-eligible";
@@ -477,17 +486,21 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
 
         transportService.connectToNode(joinRequest.getSourceNode(), ActionListener.wrap(ignore -> {
             final ClusterState stateForJoinValidation = getStateForMasterService();
-
+            //本节点当选主节点
             if (stateForJoinValidation.nodes().isLocalNodeElectedMaster()) {
+                //校验
                 onJoinValidators.forEach(a -> a.accept(joinRequest.getSourceNode(), stateForJoinValidation));
+
+                //没有全局block时
                 if (stateForJoinValidation.getBlocks().hasGlobalBlock(STATE_NOT_RECOVERED_BLOCK) == false) {
-                    // we do this in a couple of places including the cluster update thread. This one here is really just best effort
-                    // to ensure we fail as fast as possible.
-                    JoinTaskExecutor.ensureMajorVersionBarrier(joinRequest.getSourceNode().getVersion(),
-                        stateForJoinValidation.getNodes().getMinNodeVersion());
+                    // we do this in a couple of places including the cluster update thread. This one here is really just best effort to ensure we fail as fast as possible.
+                    Version version = joinRequest.getSourceNode().getVersion();
+                    Version minNodeVersion = stateForJoinValidation.getNodes().getMinNodeVersion();
+                    JoinTaskExecutor.ensureMajorVersionBarrier(version, minNodeVersion);
                 }
                 sendValidateJoinRequest(stateForJoinValidation, joinRequest, joinCallback);
             } else {
+                //本节点未当选时
                 processJoinRequest(joinRequest, joinCallback);
             }
         }, joinCallback::onFailure));
@@ -522,7 +535,11 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
             final CoordinationState coordState = coordinationState.get();
             final boolean prevElectionWon = coordState.electionWon();
 
+            //检查选举状态-是否成为主节点，然后决定加入其他节点，还是作为主节点并告诉其他节点,
             optionalJoin.ifPresent(this::handleJoin);
+            //第一次，Coordidate状态，记录请求节点，（拒绝重复请求）
+            //成为主节点时，直接发布当前节点状态到加入节点
+            //成为follwer时，直接返回错误
             joinAccumulator.handleJoinRequest(joinRequest.getSourceNode(), joinCallback);
 
             if (prevElectionWon == false && coordState.electionWon()) {
@@ -974,8 +991,10 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
 
     private void handleJoin(Join join) {
         synchronized (mutex) {
+            //确定当前节点的状态是否最新，不是则作为follwer加入最新的
             ensureTermAtLeast(getLocalNode(), join.getTerm()).ifPresent(this::handleJoin);
 
+            //赢得选举
             if (coordinationState.get().electionWon()) {
                 // If we have already won the election then the actual join does not matter for election purposes, so swallow any exception
                 final boolean isNewJoinFromMasterEligibleNode = handleJoinIgnoringExceptions(join);
@@ -984,6 +1003,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
                 // schedule a reconfiguration if needed. It's benign to schedule a reconfiguration anyway, but it might fail if it wins the
                 // race against the election-winning publication and log a big error message, which we can prevent by checking this here:
                 final boolean establishedAsMaster = mode == Mode.LEADER && getLastAcceptedState().term() == getCurrentTerm();
+                //第一次成为master，并且没有发布状态时，则定时更新整个集群的状态
                 if (isNewJoinFromMasterEligibleNode && establishedAsMaster && publicationInProgress() == false) {
                     scheduleReconfigurationIfNeeded();
                 }
@@ -1049,7 +1069,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
             return clusterState;
         }
     }
-
+    //将状态通知所有follow
     @Override
     public void publish(ClusterChangedEvent clusterChangedEvent, ActionListener<Void> publishListener, AckListener ackListener) {
         try {
@@ -1169,7 +1189,9 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
                 super.startProbe(transportAddress);
             }
         }
-    //并发访问时，peer到数量状态可能会随时变化，所以只是对当前获取结果的处理，每次都使用新的对象，新的状态，即使是并发时，也不会因为时间顺序无法保证，导致集群状态错误
+        /**
+         *并发访问时，peer到数量状态可能会随时变化，所以只是对当前获取结果的处理，每次都使用新的对象，新的状态，即使是并发时，也不会因为时间顺序无法保证，导致集群状态错误
+         */
         @Override
         protected void onFoundPeersUpdated() {
             synchronized (mutex) {
@@ -1179,7 +1201,10 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
                     foundPeers.forEach(expectedVotes::addVote);
                     expectedVotes.addVote(Coordinator.this.getLocalNode());
                     final boolean foundQuorum = coordinationState.get().isElectionQuorum(expectedVotes);
-                    //合法人数超过最低限制，开始选举任务
+                    /**
+                     * 1。合法人数超过最低限制，开始选举任务，只会执行一次
+                     * 2。如果人数变得不足时，则会终止选举
+                     */
                     if (foundQuorum) {
                         if (electionScheduler == null) {
                             startElectionScheduler();
@@ -1193,7 +1218,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
             clusterBootstrapService.onFoundPeersUpdated();
         }
     }
-//开始选举定时任务，无限执行
+    //开始选举定时任务，无限执行
     private void startElectionScheduler() {
         assert electionScheduler == null : electionScheduler;
 
@@ -1202,6 +1227,11 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
         }
 
         final TimeValue gracePeriod = TimeValue.ZERO; // TODO variable grace period
+        /**
+         *  启动选举线程
+         *  1。选举会无限制进行，每次的时间时随机，但是随机值的产生范围时逐渐扩大的
+         *  2。选举结束受外部状态控制，和法定人数有关
+         */
         electionScheduler = electionSchedulerFactory.startElectionScheduler(gracePeriod, new Runnable() {//选举线程
             @Override
             public void run() {

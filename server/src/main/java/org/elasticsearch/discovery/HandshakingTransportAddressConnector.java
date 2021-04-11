@@ -82,9 +82,9 @@ public class HandshakingTransportAddressConnector implements TransportAddressCon
                     emptySet(), Version.CURRENT.minimumCompatibilityVersion());
 
                 logger.trace("[{}] opening probe connection", thisConnectionAttempt);
-                transportService.openConnection(targetNode,
-                    ConnectionProfile.buildSingleChannelProfile(Type.REG, probeConnectTimeout, probeHandshakeTimeout,
-                        TimeValue.MINUS_ONE, null), new ActionListener<Connection>() {
+                ConnectionProfile connectionProfile = ConnectionProfile.buildSingleChannelProfile(Type.REG, probeConnectTimeout, probeHandshakeTimeout,TimeValue.MINUS_ONE, null);
+
+                transportService.openConnection(targetNode, connectionProfile, new ActionListener<Connection>() {
                         @Override
                         public void onResponse(Connection connection) {
                             logger.trace("[{}] opened probe connection", thisConnectionAttempt);

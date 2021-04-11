@@ -124,14 +124,16 @@ public class JoinHelper {
 
         };
 
+        //处理申请加入集群的请求
         transportService.registerRequestHandler(JOIN_ACTION_NAME, ThreadPool.Names.GENERIC, false, false, JoinRequest::new,
             (request, channel, task) -> joinHandler.accept(request, transportJoinCallback(request, channel)));
-
+        //处理zen方式申请加入集群的请求
         transportService.registerRequestHandler(MembershipAction.DISCOVERY_JOIN_ACTION_NAME,
             ThreadPool.Names.GENERIC, false, false, MembershipAction.JoinRequest::new,
             (request, channel, task) -> joinHandler.accept(new JoinRequest(request.getNode(), Optional.empty()), // treat as non-voting join
                 transportJoinCallback(request, channel)));
 
+        //启动加入集群请求
         transportService.registerRequestHandler(START_JOIN_ACTION_NAME, Names.GENERIC, false, false,
             StartJoinRequest::new,
             (request, channel, task) -> {
@@ -139,7 +141,7 @@ public class JoinHelper {
                 sendJoinRequest(destination, Optional.of(joinLeaderInTerm.apply(request)));
                 channel.sendResponse(Empty.INSTANCE);
             });
-
+        //校验申请加入的集群是否符合条件
         transportService.registerRequestHandler(VALIDATE_JOIN_ACTION_NAME,
             ThreadPool.Names.GENERIC, ValidateJoinRequest::new,
             (request, channel, task) -> {
@@ -150,7 +152,10 @@ public class JoinHelper {
                         " with a different cluster uuid " + request.getState().metaData().clusterUUID() +
                         " than local cluster uuid " + localState.metaData().clusterUUID() + ", rejecting");
                 }
-                joinValidators.forEach(action -> action.accept(transportService.getLocalNode(), request.getState()));
+                for (BiConsumer<DiscoveryNode, ClusterState> joinValidator : joinValidators) {
+                    joinValidator.accept(transportService.getLocalNode(), request.getState());
+                }
+//                joinValidators.forEach(action -> action.accept(transportService.getLocalNode(), request.getState()));
                 channel.sendResponse(Empty.INSTANCE);
             });
 

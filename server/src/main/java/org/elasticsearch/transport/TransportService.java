@@ -428,8 +428,8 @@ public class TransportService extends AbstractLifecycleComponent implements Tran
         final Transport.Connection connection,
         final long handshakeTimeout,
         final ActionListener<DiscoveryNode> listener) {
-        handshake(connection, handshakeTimeout, clusterName.getEqualityPredicate(),
-            ActionListener.map(listener, HandshakeResponse::getDiscoveryNode));
+        ActionListener<HandshakeResponse> actionListener = ActionListener.map(listener, HandshakeResponse::getDiscoveryNode);
+        handshake(connection, handshakeTimeout, clusterName.getEqualityPredicate(),actionListener);
     }
 
     /**
@@ -449,31 +449,32 @@ public class TransportService extends AbstractLifecycleComponent implements Tran
         final Transport.Connection connection,
         final long handshakeTimeout, Predicate<ClusterName> clusterNamePredicate,
         final ActionListener<HandshakeResponse> listener) {
-        final DiscoveryNode node = connection.getNode();
-        sendRequest(connection, HANDSHAKE_ACTION_NAME, HandshakeRequest.INSTANCE,
-            TransportRequestOptions.builder().withTimeout(handshakeTimeout).build(),
-            new ActionListenerResponseHandler<>(
-                new ActionListener<HandshakeResponse>() {
-                    @Override
-                    public void onResponse(HandshakeResponse response) {
-                        if (clusterNamePredicate.test(response.clusterName) == false) {
-                            listener.onFailure(new IllegalStateException("handshake with [" + node + "] failed: remote cluster name ["
-                                + response.clusterName.value() + "] does not match " + clusterNamePredicate));
-                        } else if (response.version.isCompatible(localNode.getVersion()) == false) {
-                            listener.onFailure(new IllegalStateException("handshake with [" + node + "] failed: remote node version ["
-                                + response.version + "] is incompatible with local node version [" + localNode.getVersion() + "]"));
-                        } else {
-                            listener.onResponse(response);
-                        }
-                    }
 
-                    @Override
-                    public void onFailure(Exception e) {
-                        listener.onFailure(e);
+        final DiscoveryNode node = connection.getNode();
+        ActionListenerResponseHandler<HandshakeResponse> handler = new ActionListenerResponseHandler<>(
+            new ActionListener<HandshakeResponse>() {
+                @Override
+                public void onResponse(HandshakeResponse response) {
+                    if (clusterNamePredicate.test(response.clusterName) == false) {
+                        listener.onFailure(new IllegalStateException("handshake with [" + node + "] failed: remote cluster name ["
+                            + response.clusterName.value() + "] does not match " + clusterNamePredicate));
+                    } else if (response.version.isCompatible(localNode.getVersion()) == false) {
+                        listener.onFailure(new IllegalStateException("handshake with [" + node + "] failed: remote node version ["
+                            + response.version + "] is incompatible with local node version [" + localNode.getVersion() + "]"));
+                    } else {
+                        listener.onResponse(response);
                     }
                 }
-                , HandshakeResponse::new, ThreadPool.Names.GENERIC
-            ));
+
+                @Override
+                public void onFailure(Exception e) {
+                    listener.onFailure(e);
+                }
+            }
+            , HandshakeResponse::new, ThreadPool.Names.GENERIC
+        );
+        TransportRequestOptions build = TransportRequestOptions.builder().withTimeout(handshakeTimeout).build();
+        sendRequest(connection, HANDSHAKE_ACTION_NAME, HandshakeRequest.INSTANCE, build, handler);
     }
 
     public ConnectionManager getConnectionManager() {

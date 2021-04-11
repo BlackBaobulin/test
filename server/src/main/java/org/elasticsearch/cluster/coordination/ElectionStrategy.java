@@ -47,10 +47,11 @@ public abstract class ElectionStrategy {
     public final boolean isElectionQuorum(DiscoveryNode localNode, long localCurrentTerm, long localAcceptedTerm, long localAcceptedVersion,
                                           VotingConfiguration lastCommittedConfiguration, VotingConfiguration lastAcceptedConfiguration,
                                           VoteCollection joinVotes) {
-        return joinVotes.isQuorum(lastCommittedConfiguration) &&
-            joinVotes.isQuorum(lastAcceptedConfiguration) &&
-            satisfiesAdditionalQuorumConstraints(localNode, localCurrentTerm, localAcceptedTerm, localAcceptedVersion,
-                lastCommittedConfiguration, lastAcceptedConfiguration, joinVotes);
+        boolean a = joinVotes.isQuorum(lastCommittedConfiguration);
+        boolean b = joinVotes.isQuorum(lastAcceptedConfiguration);
+        boolean c = satisfiesAdditionalQuorumConstraints(localNode, localCurrentTerm, localAcceptedTerm, localAcceptedVersion,
+            lastCommittedConfiguration, lastAcceptedConfiguration, joinVotes);
+        return a && b && c;
     }
 
     /**

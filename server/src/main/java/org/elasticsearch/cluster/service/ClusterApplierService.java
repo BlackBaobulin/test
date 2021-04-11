@@ -389,7 +389,7 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
         }
         return true;
     }
-
+    //更新集群状态
     private void runTask(UpdateTask task) {
         if (!lifecycle.started()) {
             logger.debug("processing [{}]: ignoring, cluster applier service not started", task.source);

@@ -112,6 +112,13 @@ public class CoordinationState {
         return electionWon;
     }
 
+    /**
+     * 上次提交的大于1/2
+     * 上次接收到的大于1/2
+     * 不是仅投票节点，直接true
+     * @param joinVotes
+     * @return
+     */
     public boolean isElectionQuorum(VoteCollection joinVotes) {
         return electionStrategy.isElectionQuorum(localNode, getCurrentTerm(), getLastAcceptedTerm(), getLastAcceptedVersion(),
             getLastCommittedConfiguration(), getLastAcceptedConfiguration(), joinVotes);

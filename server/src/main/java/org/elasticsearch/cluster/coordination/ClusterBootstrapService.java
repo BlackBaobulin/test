@@ -109,15 +109,17 @@ public class ClusterBootstrapService {
     }
 
     public static boolean discoveryIsConfigured(Settings settings) {
-        return Stream.of(DISCOVERY_SEED_PROVIDERS_SETTING, LEGACY_DISCOVERY_HOSTS_PROVIDER_SETTING,
+        Stream<Setting<List<String>>> settingStream = Stream.of(DISCOVERY_SEED_PROVIDERS_SETTING, LEGACY_DISCOVERY_HOSTS_PROVIDER_SETTING,
             DISCOVERY_SEED_HOSTS_SETTING, LEGACY_DISCOVERY_ZEN_PING_UNICAST_HOSTS_SETTING,
-            INITIAL_MASTER_NODES_SETTING).anyMatch(s -> s.exists(settings));
+            INITIAL_MASTER_NODES_SETTING);
+        return settingStream.anyMatch(s -> s.exists(settings));
     }
 
     void onFoundPeersUpdated() {
         final Set<DiscoveryNode> nodes = getDiscoveredNodes();
-        if (bootstrappingPermitted.get() && transportService.getLocalNode().isMasterNode() && bootstrapRequirements.isEmpty() == false
-            && isBootstrappedSupplier.getAsBoolean() == false && nodes.stream().noneMatch(Coordinator::isZen1Node)) {
+        boolean b = bootstrappingPermitted.get() && transportService.getLocalNode().isMasterNode() && bootstrapRequirements.isEmpty() == false
+            && isBootstrappedSupplier.getAsBoolean() == false;
+        if (b && nodes.stream().noneMatch(Coordinator::isZen1Node)) {
 
             final Tuple<Set<DiscoveryNode>,List<String>> requirementMatchingResult;
             try {
@@ -146,6 +148,9 @@ public class ClusterBootstrapService {
         }
     }
 
+    /**
+     * 为配置host等其他节点时，会尽最大努力查找节点（查找方式待确认？）
+     */
     void scheduleUnconfiguredBootstrap() {
         if (unconfiguredBootstrapTimeout == null) {
             return;

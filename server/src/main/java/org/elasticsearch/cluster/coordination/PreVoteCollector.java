@@ -98,6 +98,12 @@ public class PreVoteCollector {
         state = new Tuple<>(leader, preVoteResponse);
     }
 
+    /**
+     *检查选举请求到版本
+     * 1。当前节点不是主节点，直接返回当前节点的请求版本号，上次接收到到请求版本号，以及元数据到版本号
+     * 2。如果当前节点是主节点，
+     * 3。请求版本大于当前节点，如果当前节点没有同步数据到其他节点，会重新选举，如果已经同步，则拒绝请求
+     */
     private PreVoteResponse handlePreVoteRequest(final PreVoteRequest request) {
         updateMaxTermSeen.accept(request.getCurrentTerm());
 
@@ -174,6 +180,12 @@ public class PreVoteCollector {
                 }));
         }
 
+        /**
+         *  1。更新版本信息为最新
+         *  2。收集当前投票情况
+         * @param response
+         * @param sender
+         */
         private void handlePreVoteResponse(final PreVoteResponse response, final DiscoveryNode sender) {
             if (isClosed.get()) {
                 logger.debug("{} is closed, ignoring {} from {}", this, response, sender);
