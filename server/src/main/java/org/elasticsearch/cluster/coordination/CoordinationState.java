@@ -274,6 +274,7 @@ public class CoordinationState {
         if (electionWon && prevElectionWon == false) {
             logger.debug("handleJoin: election won in term [{}] with {}", getCurrentTerm(), joinVotes);
             lastPublishedVersion = getLastAcceptedVersion();
+            System.err.println("master初步选举成功。。。。。。。");
         }
         return added;
     }

@@ -137,6 +137,11 @@ public abstract class PeerFinder {
         onFoundPeersUpdated(); // trigger a check for a quorum already
     }
 
+    /**
+     * 更新为非激活状态，
+     * 再次检查是否有离活节点，如果有，则更新
+     * @param leader
+     */
     public void deactivate(DiscoveryNode leader) {
         final boolean peersRemoved;
         synchronized (mutex) {
@@ -338,8 +343,8 @@ public abstract class PeerFinder {
             logger.trace("startProbe({}) not probing local node", transportAddress);
             return;
         }
-
-        peersByAddress.computeIfAbsent(transportAddress, this::createConnectingPeer);
+        Peer peer = peersByAddress.computeIfAbsent(transportAddress, this::createConnectingPeer);
+        System.err.println(peer+"================================="+transportAddress);
     }
 
     private class Peer {
@@ -466,9 +471,6 @@ public abstract class PeerFinder {
                         peersRequestInFlight = false;
                         masterNode.map(DiscoveryNode::getAddress).ifPresent(PeerFinder.this::startProbe);
                         List<DiscoveryNode> knownPeers = response.getKnownPeers();
-                        for (DiscoveryNode knownPeer : knownPeers) {
-                            System.err.println(knownPeer.isMasterNode());
-                        }
                         knownPeers.stream().map(DiscoveryNode::getAddress).forEach(PeerFinder.this::startProbe);
                     }
                     //如果发现的节点时主节点，则发送加入集群请求

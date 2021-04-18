@@ -488,6 +488,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
             final ClusterState stateForJoinValidation = getStateForMasterService();
             //本节点当选主节点
             if (stateForJoinValidation.nodes().isLocalNodeElectedMaster()) {
+                System.err.println("主节点-逸轩出");
                 //校验
                 onJoinValidators.forEach(a -> a.accept(joinRequest.getSourceNode(), stateForJoinValidation));
 
@@ -501,6 +502,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
                 sendValidateJoinRequest(stateForJoinValidation, joinRequest, joinCallback);
             } else {
                 //本节点未当选时
+                System.err.println("主节点-未轩出");
                 processJoinRequest(joinRequest, joinCallback);
             }
         }, joinCallback::onFailure));
@@ -543,6 +545,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
             joinAccumulator.handleJoinRequest(joinRequest.getSourceNode(), joinCallback);
 
             if (prevElectionWon == false && coordState.electionWon()) {
+                System.err.println("改变成leader、。。。。。。。。");
                 becomeLeader("handleJoinRequest");
             }
         }
@@ -996,6 +999,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
 
             //赢得选举
             if (coordinationState.get().electionWon()) {
+                System.err.println("已经赢得、、、、、、、、、、");
                 // If we have already won the election then the actual join does not matter for election purposes, so swallow any exception
                 final boolean isNewJoinFromMasterEligibleNode = handleJoinIgnoringExceptions(join);
 
@@ -1008,6 +1012,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
                     scheduleReconfigurationIfNeeded();
                 }
             } else {
+                System.err.println("还没有赢得、、、、、、、、、、");
                 coordinationState.get().handleJoin(join); // this might fail and bubble up the exception
             }
         }
@@ -1218,7 +1223,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
             clusterBootstrapService.onFoundPeersUpdated();
         }
     }
-    //开始选举定时任务，无限执行
+    //开始选举定时任务，无限执行（当前节点必须是主节点）
     private void startElectionScheduler() {
         assert electionScheduler == null : electionScheduler;
 
