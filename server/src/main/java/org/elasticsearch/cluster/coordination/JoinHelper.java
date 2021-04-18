@@ -124,7 +124,7 @@ public class JoinHelper {
 
         };
 
-        //处理申请加入集群的请求
+        //主合格节点处理申请加入集群的请求
         transportService.registerRequestHandler(JOIN_ACTION_NAME, ThreadPool.Names.GENERIC, false, false, JoinRequest::new,
             (request, channel, task) -> joinHandler.accept(request, transportJoinCallback(request, channel)));
         //处理zen方式申请加入集群的请求
@@ -133,7 +133,7 @@ public class JoinHelper {
             (request, channel, task) -> joinHandler.accept(new JoinRequest(request.getNode(), Optional.empty()), // treat as non-voting join
                 transportJoinCallback(request, channel)));
 
-        //启动加入集群请求
+        //主不合格节点启动加入集群请求
         transportService.registerRequestHandler(START_JOIN_ACTION_NAME, Names.GENERIC, false, false,
             StartJoinRequest::new,
             (request, channel, task) -> {
@@ -320,6 +320,12 @@ public class JoinHelper {
         }
     }
 
+    /**
+     * 主合格节点发送star——join告诉主不合格节点，可以加入我了
+     *
+     * @param startJoinRequest
+     * @param destination
+     */
     public void sendStartJoinRequest(final StartJoinRequest startJoinRequest, final DiscoveryNode destination) {
         assert startJoinRequest.getSourceNode().isMasterNode()
             : "sending start-join request for master-ineligible " + startJoinRequest.getSourceNode();
