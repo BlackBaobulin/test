@@ -182,7 +182,7 @@ public class PreVoteCollector {
 
         /**
          *  1。更新版本信息为最新
-         *  2。收集当前投票情况
+         *  2。收集当前投票情况，满足条件则开始选举
          * @param response
          * @param sender
          */

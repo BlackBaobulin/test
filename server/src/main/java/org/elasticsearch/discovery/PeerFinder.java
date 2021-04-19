@@ -137,6 +137,11 @@ public abstract class PeerFinder {
         onFoundPeersUpdated(); // trigger a check for a quorum already
     }
 
+    /**
+     * 更新为非激活状态，
+     * 再次检查是否有离活节点，如果有，则更新
+     * @param leader
+     */
     public void deactivate(DiscoveryNode leader) {
         final boolean peersRemoved;
         synchronized (mutex) {

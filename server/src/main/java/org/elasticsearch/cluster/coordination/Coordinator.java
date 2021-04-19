@@ -1218,7 +1218,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
             clusterBootstrapService.onFoundPeersUpdated();
         }
     }
-    //开始选举定时任务，无限执行
+    //开始选举定时任务，无限执行（当前节点必须是主节点）
     private void startElectionScheduler() {
         assert electionScheduler == null : electionScheduler;
 
