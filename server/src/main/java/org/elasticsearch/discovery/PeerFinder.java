@@ -343,8 +343,8 @@ public abstract class PeerFinder {
             logger.trace("startProbe({}) not probing local node", transportAddress);
             return;
         }
-
-        peersByAddress.computeIfAbsent(transportAddress, this::createConnectingPeer);
+        Peer peer = peersByAddress.computeIfAbsent(transportAddress, this::createConnectingPeer);
+        System.err.println(peer+"================================="+transportAddress);
     }
 
     private class Peer {
@@ -471,9 +471,6 @@ public abstract class PeerFinder {
                         peersRequestInFlight = false;
                         masterNode.map(DiscoveryNode::getAddress).ifPresent(PeerFinder.this::startProbe);
                         List<DiscoveryNode> knownPeers = response.getKnownPeers();
-                        for (DiscoveryNode knownPeer : knownPeers) {
-                            System.err.println(knownPeer.isMasterNode());
-                        }
                         knownPeers.stream().map(DiscoveryNode::getAddress).forEach(PeerFinder.this::startProbe);
                     }
                     //如果发现的节点时主节点，则发送加入集群请求
