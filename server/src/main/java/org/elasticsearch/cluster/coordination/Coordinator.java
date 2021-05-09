@@ -290,6 +290,11 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
         }
     }
 
+    /**
+     * 处理集群发布状态请求
+     * @param publishRequest
+     * @return
+     */
     PublishWithJoinResponse handlePublishRequest(PublishRequest publishRequest) {
         assert publishRequest.getAcceptedState().nodes().getLocalNode().equals(getLocalNode()) :
             publishRequest.getAcceptedState().nodes().getLocalNode() + " != " + getLocalNode();

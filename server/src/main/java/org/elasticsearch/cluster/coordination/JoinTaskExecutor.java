@@ -140,9 +140,11 @@ public class JoinTaskExecutor implements ClusterStateTaskExecutor<JoinTaskExecut
                     if (enforceMajorVersion) {
                         ensureMajorVersionBarrier(node.getVersion(), minClusterNodeVersion);
                     }
+                    //校验节点的版本是否在允许范围
                     ensureNodesCompatibility(node.getVersion(), minClusterNodeVersion, maxClusterNodeVersion);
                     // we do this validation quite late to prevent race conditions between nodes joining and importing dangling indices
                     // we have to reject nodes that don't support all indices we have in this cluster
+                    //校验所有索引的版本号和当前节点版本是否兼容，不兼容在不允许节点加入
                     ensureIndexCompatibility(node.getVersion(), currentState.getMetaData());
                     nodesBuilder.add(node);
                     nodesChanged = true;
@@ -159,8 +161,9 @@ public class JoinTaskExecutor implements ClusterStateTaskExecutor<JoinTaskExecut
             rerouteService.reroute("post-join reroute", Priority.HIGH, ActionListener.wrap(
                 r -> logger.trace("post-join reroute completed"),
                 e -> logger.debug("post-join reroute failed", e)));
-
-            return results.build(allocationService.adaptAutoExpandReplicas(newState.nodes(nodesBuilder).build()));
+            ClusterState build = newState.nodes(nodesBuilder).build();
+            ClusterState clusterState = allocationService.adaptAutoExpandReplicas(build);
+            return results.build(clusterState);
         } else {
             // we must return a new cluster state instance to force publishing. This is important
             // for the joining node to finalize its join and set us as a master
