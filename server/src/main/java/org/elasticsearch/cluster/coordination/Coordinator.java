@@ -634,8 +634,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
         assert mode != Mode.LEADER : "do not switch to follower from leader (should be candidate first)";
 
         if (mode == Mode.FOLLOWER && Optional.of(leaderNode).equals(lastKnownLeader)) {
-            logger.trace("{}: coordinator remaining FOLLOWER of [{}] in term {}",
-                method, leaderNode, getCurrentTerm());
+            logger.trace("{}: coordinator remaining FOLLOWER of [{}] in term {}", method, leaderNode, getCurrentTerm());
         } else {
             logger.debug("{}: coordinator becoming FOLLOWER of [{}] in term {} (was {}, lastKnownLeader was [{}])",
                 method, leaderNode, getCurrentTerm(), mode, lastKnownLeader);

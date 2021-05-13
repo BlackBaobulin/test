@@ -1,10 +1,10 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Elasticsearch-rep" type="Application" factoryName="Application" singleton="false">
+  <configuration default="false" name="Elasticsearch-9301" type="Application" factoryName="Application" singleton="false">
     <option name="ALTERNATIVE_JRE_PATH" value="13" />
     <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
     <option name="INCLUDE_PROVIDED_SCOPE" value="true" />
     <option name="MAIN_CLASS_NAME" value="org.elasticsearch.bootstrap.Elasticsearch" />
-    <module name="elasticsearch.server" />
+    <module name="elasticsearch.server.main" />
     <option name="VM_PARAMETERS" value="-Xms4g -Xmx4g -Des.path.home=$USER_HOME$/Documents/elasticsearch-7.6.2-rep -Des.path.conf=$USER_HOME$/Documents/elasticsearch-7.6.2-rep/config -Dlog4j2.disable.jmx=true -Djava.security.policy=$USER_HOME$/Documents/elasticsearch-7.6.2-rep/config/elasticsearch.policy" />
     <method v="2">
       <option name="Make" enabled="true" />
