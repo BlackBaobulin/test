@@ -234,7 +234,6 @@ final class Security {
                     }
                 }
                 if(policyFile == null){
-                    System.err.println("-------------------------------------------");
                     return null;
                 }
                 return Policy.getInstance("JavaPolicy", new URIParameter(policyFile.toURI()));

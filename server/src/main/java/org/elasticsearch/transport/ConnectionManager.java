@@ -22,6 +22,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.node.DiscoveryNode;
+import org.elasticsearch.common.CheckedConsumer;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.AbstractRefCounted;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
@@ -39,6 +40,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 /**
  * This class manages node connections. The connection is opened by the underlying transport. Once the
@@ -119,6 +121,7 @@ public class ConnectionManager implements Closeable {
         }
 
         if (connectedNodes.containsKey(node)) {
+            logger.info(node+"====--=-=-=0-0=-0-0-=0-=0-=");
             connectingRefCounter.decRef();
             listener.onResponse(null);
             return;
@@ -139,7 +142,13 @@ public class ConnectionManager implements Closeable {
         currentListener.addListener(listener, EsExecutors.newDirectExecutorService());
 
         final RunOnce releaseOnce = new RunOnce(connectingRefCounter::decRef);
-        internalOpenConnection(node, resolvedProfile, ActionListener.wrap(conn -> {
+
+        Consumer<Exception> failureConsumer = e -> {
+            assert Transports.assertNotTransportThread("internalOpenConnection failure");
+            failConnectionListeners(node, releaseOnce, e, currentListener);
+        };
+
+        ActionListener<Transport.Connection> wrapListener = ActionListener.wrap(conn -> {
             connectionValidator.validate(conn, resolvedProfile, ActionListener.wrap(
                 ignored -> {
                     assert Transports.assertNotTransportThread("connection validator success");
@@ -171,10 +180,9 @@ public class ConnectionManager implements Closeable {
                     IOUtils.closeWhileHandlingException(conn);
                     failConnectionListeners(node, releaseOnce, e, currentListener);
                 }));
-        }, e -> {
-            assert Transports.assertNotTransportThread("internalOpenConnection failure");
-            failConnectionListeners(node, releaseOnce, e, currentListener);
-        }));
+        }, failureConsumer);
+
+        internalOpenConnection(node, resolvedProfile, wrapListener);
     }
 
     /**

@@ -321,7 +321,7 @@ public class JoinHelper {
     }
 
     /**
-     * 主合格节点发送star——join告诉主不合格节点，可以加入我了
+     *
      *
      * @param startJoinRequest
      * @param destination
@@ -461,8 +461,10 @@ public class JoinHelper {
         public void close(Mode newMode) {
             assert closed == false : "CandidateJoinAccumulator closed";
             closed = true;
+            //成为leader
             if (newMode == Mode.LEADER) {
                 final Map<JoinTaskExecutor.Task, ClusterStateTaskListener> pendingAsTasks = new LinkedHashMap<>();
+
                 joinRequestAccumulator.forEach((key, value) -> {
                     final JoinTaskExecutor.Task task = new JoinTaskExecutor.Task(key, "elect leader");
                     pendingAsTasks.put(task, new JoinTaskListener(task, value));

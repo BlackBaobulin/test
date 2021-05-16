@@ -186,6 +186,7 @@ public class PublicationTransportHandler {
                                            ActionListener<PublishWithJoinResponse> originalListener) {
                 assert publishRequest.getAcceptedState() == clusterChangedEvent.state() : "state got switched on us";
                 final ActionListener<PublishWithJoinResponse> responseActionListener;
+                //本节点发给自己
                 if (destination.equals(nodes.getLocalNode())) {
                     // if publishing to self, use original request instead (see currentPublishRequestToSelf for explanation)
                     final PublishRequest previousRequest = currentPublishRequestToSelf.getAndSet(publishRequest);
@@ -206,6 +207,7 @@ public class PublicationTransportHandler {
                         }
                     };
                 } else {
+                    //发个其他节点
                     responseActionListener = originalListener;
                 }
                 if (sendFullVersion || !previousState.nodes().nodeExists(destination)) {

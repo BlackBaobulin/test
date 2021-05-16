@@ -284,7 +284,7 @@ public abstract class PeerFinder {
             return peersRemoved;
         }
 
-        //探测主节点，没有则建立链接，当前节点则跳过
+        //探测上次接收的节点
         logger.trace("probing master nodes from cluster state: {}", lastAcceptedNodes);
         for (ObjectCursor<DiscoveryNode> discoveryNodeObjectCursor : lastAcceptedNodes.getMasterNodes().values()) {
             startProbe(discoveryNodeObjectCursor.value.getAddress());
@@ -331,7 +331,7 @@ public abstract class PeerFinder {
 
         return peersRemoved;
     }
-    //探测给定的host地址是否存活可用
+    //探测给定的host地址，并存储
     protected void startProbe(TransportAddress transportAddress) {
         assert holdsLock() : "PeerFinder mutex not held";
         if (active == false) {
@@ -344,7 +344,7 @@ public abstract class PeerFinder {
             return;
         }
         Peer peer = peersByAddress.computeIfAbsent(transportAddress, this::createConnectingPeer);
-        System.err.println(peer+"================================="+transportAddress);
+        logger.info(peer+"================================="+transportAddress);
     }
 
     private class Peer {

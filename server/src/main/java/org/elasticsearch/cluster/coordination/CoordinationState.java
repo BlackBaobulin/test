@@ -264,6 +264,9 @@ public class CoordinationState {
         }
 
         boolean added = joinVotes.addJoinVote(join);
+
+        logger.info("==================投票节点：{}",joinVotes.nodes.values());
+        logger.info("==================");
         boolean prevElectionWon = electionWon;
         electionWon = isElectionQuorum(joinVotes);
         assert !prevElectionWon || electionWon : // we cannot go from won to not won
@@ -274,7 +277,7 @@ public class CoordinationState {
         if (electionWon && prevElectionWon == false) {
             logger.debug("handleJoin: election won in term [{}] with {}", getCurrentTerm(), joinVotes);
             lastPublishedVersion = getLastAcceptedVersion();
-            System.err.println("master初步选举成功。。。。。。。");
+            logger.info(" ==================master初步选举成功");
         }
         return added;
     }

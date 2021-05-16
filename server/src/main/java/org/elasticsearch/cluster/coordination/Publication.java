@@ -64,7 +64,7 @@ public abstract class Publication {
     }
 
     public void start(Set<DiscoveryNode> faultyNodes) {
-        logger.trace("publishing {} to {}", publishRequest, publicationTargets);
+        logger.debug("publishing {} to {}", publishRequest, publicationTargets);
 
         for (final DiscoveryNode faultyNode : faultyNodes) {
             onFaultyNode(faultyNode);
@@ -118,6 +118,7 @@ public abstract class Publication {
             }
         }
 
+        logger.info("======================onPossibleCompletion");
         if (applyCommitRequest.isPresent() == false) {
             logger.debug("onPossibleCompletion: [{}] commit failed", this);
             assert isCompleted == false;
@@ -130,7 +131,7 @@ public abstract class Publication {
         isCompleted = true;
         onCompletion(true);
         assert applyCommitRequest.isPresent();
-        logger.trace("onPossibleCompletion: [{}] was successful", this);
+        logger.debug("onPossibleCompletion: [{}] was successful", this);
     }
 
     // For assertions only: verify that this invariant holds
@@ -243,24 +244,32 @@ public abstract class Publication {
             }
             assert state == PublicationTargetState.NOT_STARTED : state + " -> " + PublicationTargetState.SENT_PUBLISH_REQUEST;
             state = PublicationTargetState.SENT_PUBLISH_REQUEST;
-            Publication.this.sendPublishRequest(discoveryNode, publishRequest, new PublishResponseHandler());
+            PublishResponseHandler publishResponseHandler = new PublishResponseHandler();
+            Publication.this.sendPublishRequest(discoveryNode, publishRequest, publishResponseHandler);
             // TODO Can this ^ fail with an exception? Target should be failed if so.
             assert publicationCompletedIffAllTargetsInactiveOrCancelled();
         }
 
         void handlePublishResponse(PublishResponse publishResponse) {
             assert isWaitingForQuorum() : this;
-            logger.trace("handlePublishResponse: handling [{}] from [{}])", publishResponse, discoveryNode);
+            logger.debug("handlePublishResponse: handling [{}] from [{}])", publishResponse, discoveryNode);
             if (applyCommitRequest.isPresent()) {
                 sendApplyCommit();
             } else {
                 try {
-                    Publication.this.handlePublishResponse(discoveryNode, publishResponse).ifPresent(applyCommit -> {
-                        assert applyCommitRequest.isPresent() == false;
-                        applyCommitRequest = Optional.of(applyCommit);
+                    /**
+                     * 发送提交请求
+                     */
+                    Optional<ApplyCommitRequest> applyCommitRequest = Publication.this.handlePublishResponse(discoveryNode, publishResponse);
+                    applyCommitRequest.ifPresent(applyCommit -> {
+                        assert Publication.this.applyCommitRequest.isPresent() == false;
+                        Publication.this.applyCommitRequest = Optional.of(applyCommit);
                         ackListener.onCommit(TimeValue.timeValueMillis(currentTimeSupplier.getAsLong() - startTime));
-                        publicationTargets.stream().filter(PublicationTarget::isWaitingForQuorum)
-                            .forEach(PublicationTarget::sendApplyCommit);
+                        List<PublicationTarget> collect = publicationTargets.stream().filter(PublicationTarget::isWaitingForQuorum).collect(Collectors.toList());
+                        for (PublicationTarget publicationTarget : collect) {
+                            publicationTarget.sendApplyCommit();
+                        }
+
                     });
                 } catch (Exception e) {
                     setFailed(e);
@@ -340,6 +349,7 @@ public abstract class Publication {
                     assert publicationCompletedIffAllTargetsInactiveOrCancelled();
                     return;
                 }
+                logger.info("==================发布请求响应处理,from:{}",discoveryNode);
 
                 if (response.getJoin().isPresent()) {
                     final Join join = response.getJoin().get();
@@ -348,7 +358,7 @@ public abstract class Publication {
                     logger.trace("handling join within publish response: {}", join);
                     onJoin(join);
                 } else {
-                    logger.trace("publish response from {} contained no join", discoveryNode);
+                    logger.debug("publish response from {} contained no join", discoveryNode);
                     onMissingJoin(discoveryNode);
                 }
 
@@ -372,6 +382,9 @@ public abstract class Publication {
 
         }
 
+        /**
+         *
+         */
         private class ApplyCommitResponseHandler implements ActionListener<TransportResponse.Empty> {
 
             @Override

@@ -429,14 +429,17 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
                 logger.debug("cluster state updated, version [{}], source [{}]", newClusterState.version(), task.source);
             }
             try {
+                logger.info("==================applyChanges,newClusterState:{}",newClusterState.version());
                 applyChanges(task, previousClusterState, newClusterState, stopWatch);
                 TimeValue executionTime = TimeValue.timeValueMillis(Math.max(0, currentTimeInMillis() - startTimeMS));
                 logger.debug("processing [{}]: took [{}] done applying updated cluster state (version: {}, uuid: {})", task.source,
                     executionTime, newClusterState.version(),
                     newClusterState.stateUUID());
+                logger.info("===================applyListener,newClusterState:{}",newClusterState.version());
                 warnAboutSlowTaskIfNeeded(executionTime, task.source, stopWatch);
                 task.listener.onSuccess(task.source);
             } catch (Exception e) {
+                logger.info(e);
                 TimeValue executionTime = TimeValue.timeValueMillis(Math.max(0, currentTimeInMillis() - startTimeMS));
                 if (logger.isTraceEnabled()) {
                     logger.warn(new ParameterizedMessage(
@@ -484,6 +487,7 @@ public class ClusterApplierService extends AbstractLifecycleComponent implements
         logger.debug("apply cluster state with version {}", newClusterState.version());
         callClusterStateAppliers(clusterChangedEvent, stopWatch);
 
+        //断开不咋新集群状态中的所有节点
         nodeConnectionsService.disconnectFromNodesExcept(newClusterState.nodes());
 
         assert newClusterState.coordinationMetaData().getLastAcceptedConfiguration()

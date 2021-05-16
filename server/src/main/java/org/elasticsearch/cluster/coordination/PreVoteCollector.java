@@ -194,6 +194,7 @@ public class PreVoteCollector {
 
             updateMaxTermSeen.accept(response.getCurrentTerm());
 
+            //忽略比本节点新的
             if (response.getLastAcceptedTerm() > clusterState.term()
                 || (response.getLastAcceptedTerm() == clusterState.term()
                 && response.getLastAcceptedVersion() > clusterState.getVersionOrMetaDataVersion())) {
@@ -212,6 +213,9 @@ public class PreVoteCollector {
                 new Join(node, localNode, preVoteResponse.getCurrentTerm(),
                 preVoteResponse.getLastAcceptedTerm(), preVoteResponse.getLastAcceptedVersion())));
 
+            /**
+             * 当前节点信息持有的配置信息和即将参与投票节点的信息进行计算（假投票，用于流程检查）参与者是否满足配置的阈值
+             */
             if (electionStrategy.isElectionQuorum(clusterState.nodes().getLocalNode(), localPreVoteResponse.getCurrentTerm(),
                 localPreVoteResponse.getLastAcceptedTerm(), localPreVoteResponse.getLastAcceptedVersion(),
                 clusterState.getLastCommittedConfiguration(), clusterState.getLastAcceptedConfiguration(), voteCollection) == false) {
@@ -223,7 +227,7 @@ public class PreVoteCollector {
                 logger.debug("{} added {} from {} but election has already started", this, response, sender);
                 return;
             }
-
+            //满足所有条件，开始执行选举操作
             logger.debug("{} added {} from {}, starting election", this, response, sender);
             startElection.run();
         }

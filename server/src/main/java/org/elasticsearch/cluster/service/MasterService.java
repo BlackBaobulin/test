@@ -194,7 +194,6 @@ public class MasterService extends AbstractLifecycleComponent {
         return true;
     }
 
-    //主节点执行索引创建操作
     private void runTasks(TaskInputs taskInputs) {
         final String summary = taskInputs.summary;
         //检查是否初次执行
@@ -227,7 +226,7 @@ public class MasterService extends AbstractLifecycleComponent {
             final TimeValue executionTime = getTimeSince(notificationStartTime);
             logExecutionTime(executionTime, "notify listeners on unchanged cluster state", summary);
         } else {
-            System.err.println("发布系统状态。。。。。。。。。。。。。。");
+            logger.info(" ==================发布系统状态");
             final ClusterState newClusterState = taskOutputs.newClusterState;
             if (logger.isTraceEnabled()) {
                 logger.trace("cluster state updated, source [{}]\n{}", summary, newClusterState);
@@ -248,7 +247,7 @@ public class MasterService extends AbstractLifecycleComponent {
                 }
 
                 logger.debug("publishing cluster state version [{}]", newClusterState.version());
-                //状态更新成功，发布最新状态到其他节点
+                //状态更新成功，发布最新元数据到其他节点
                 publish(clusterChangedEvent, taskOutputs, publicationStartTime);
             } catch (Exception e) {
                 handleException(summary, publicationStartTime, newClusterState, e);
@@ -420,7 +419,10 @@ public class MasterService extends AbstractLifecycleComponent {
         }
 
         void processedDifferentClusterState(ClusterState previousClusterState, ClusterState newClusterState) {
-            nonFailedTasks.forEach(task -> task.listener.clusterStateProcessed(task.source(), previousClusterState, newClusterState));
+            for (Batcher.UpdateTask task : nonFailedTasks) {
+                task.listener.clusterStateProcessed(task.source(), previousClusterState, newClusterState);
+            }
+//            nonFailedTasks.forEach(task -> task.listener.clusterStateProcessed(task.source(), previousClusterState, newClusterState));
         }
 
         void clusterStatePublished(ClusterChangedEvent clusterChangedEvent) {
@@ -428,11 +430,12 @@ public class MasterService extends AbstractLifecycleComponent {
         }
 
         Discovery.AckListener createAckListener(ThreadPool threadPool, ClusterState newClusterState) {
-            return new DelegatingAckListener(nonFailedTasks.stream()
+            List<ClusterStatePublisher.AckListener> listenerList = nonFailedTasks.stream()
                 .filter(task -> task.listener instanceof AckedClusterStateTaskListener)
                 .map(task -> new AckCountDownListener((AckedClusterStateTaskListener) task.listener, newClusterState.version(),
                     newClusterState.nodes(), threadPool))
-                .collect(Collectors.toList()));
+                .collect(Collectors.toList());
+            return new DelegatingAckListener(listenerList);
         }
 
         boolean clusterStateUnchanged() {
@@ -801,9 +804,6 @@ public class MasterService extends AbstractLifecycleComponent {
                 Batcher.UpdateTask updateTask = taskBatcher.new UpdateTask(config.priority(), source, key, safe(value, supplier), executor);
                 safeTasks.add(updateTask);
             }
-//            safeTasks = entries.stream()
-//                .map(e -> taskBatcher.new UpdateTask(config.priority(), source, e.getKey(), safe(e.getValue(), supplier), executor))
-//                .collect(Collectors.toList());
             taskBatcher.submitTasks(safeTasks, config.timeout());
         } catch (EsRejectedExecutionException e) {
             // ignore cases where we are shutting down..., there is really nothing interesting
