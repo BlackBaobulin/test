@@ -105,11 +105,18 @@ public abstract class Publication {
         return applyCommitRequest.isPresent();
     }
 
+
     private void onPossibleCompletion() {
+        /**
+         * 已完成
+         */
         if (isCompleted) {
             return;
         }
 
+        /**
+         * 是否还有未完成
+         */
         if (cancelled == false) {
             for (final PublicationTarget target : publicationTargets) {
                 if (target.isActive()) {
@@ -117,7 +124,9 @@ public abstract class Publication {
                 }
             }
         }
-
+        /**
+         *
+         */
         logger.info("======================onPossibleCompletion");
         if (applyCommitRequest.isPresent() == false) {
             logger.debug("onPossibleCompletion: [{}] commit failed", this);
@@ -134,10 +143,16 @@ public abstract class Publication {
         logger.debug("onPossibleCompletion: [{}] was successful", this);
     }
 
+    /**
+     * 在执行中，但是没有表示已完成验证
+     * @return
+     */
     // For assertions only: verify that this invariant holds
     private boolean publicationCompletedIffAllTargetsInactiveOrCancelled() {
         if (cancelled == false) {
             for (final PublicationTarget target : publicationTargets) {
+                //在执行中，但是没有表示已完成验证
+                //任务未完成，完成表示应该为未完成
                 if (target.isActive()) {
                     return isCompleted == false;
                 }
@@ -264,6 +279,8 @@ public abstract class Publication {
             state = PublicationTargetState.SENT_PUBLISH_REQUEST;
             PublishResponseHandler publishResponseHandler = new PublishResponseHandler();
             Publication.this.sendPublishRequest(discoveryNode, publishRequest, publishResponseHandler);
+            /**
+             */
             // TODO Can this ^ fail with an exception? Target should be failed if so.
             assert publicationCompletedIffAllTargetsInactiveOrCancelled();
         }
@@ -336,6 +353,10 @@ public abstract class Publication {
             }
         }
 
+        /**
+         * 在执行中
+         * @return
+         */
         boolean isActive() {
             return state != PublicationTargetState.FAILED
                 && state != PublicationTargetState.APPLIED_COMMIT;
@@ -409,8 +430,7 @@ public abstract class Publication {
             @Override
             public void onResponse(TransportResponse.Empty ignored) {
                 if (isFailed()) {
-                    logger.debug("ApplyCommitResponseHandler.handleResponse: already failed, ignoring response from [{}]",
-                        discoveryNode);
+                    logger.debug("ApplyCommitResponseHandler.handleResponse: already failed, ignoring response from [{}]", discoveryNode);
                     return;
                 }
                 setAppliedCommit();
