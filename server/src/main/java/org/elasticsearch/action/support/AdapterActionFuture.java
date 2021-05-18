@@ -66,7 +66,8 @@ public abstract class AdapterActionFuture<T, L> extends BaseFuture<T> implements
 
     @Override
     public void onResponse(L result) {
-        set(convert(result));
+        T convert = convert(result);
+        set(convert);
     }
 
     @Override

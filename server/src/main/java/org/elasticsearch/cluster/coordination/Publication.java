@@ -208,11 +208,29 @@ public abstract class Publication {
     }
 
     enum PublicationTargetState {
+        /**
+         *
+         */
         NOT_STARTED,
+        /**
+         *
+         */
         FAILED,
+        /**
+         * 发布集群状态到其他节点
+         */
         SENT_PUBLISH_REQUEST,
+        /**
+         * 等待接收节点数大于一半
+         */
         WAITING_FOR_QUORUM,
+        /**
+         *
+         */
         SENT_APPLY_COMMIT,
+        /**
+         *
+         */
         APPLIED_COMMIT,
     }
 
@@ -267,6 +285,7 @@ public abstract class Publication {
                         ackListener.onCommit(TimeValue.timeValueMillis(currentTimeSupplier.getAsLong() - startTime));
                         List<PublicationTarget> collect = publicationTargets.stream().filter(PublicationTarget::isWaitingForQuorum).collect(Collectors.toList());
                         for (PublicationTarget publicationTarget : collect) {
+                            logger.info("=====================告诉节点：{}，可以commit了",publicationTarget.getDiscoveryNode().getName());
                             publicationTarget.sendApplyCommit();
                         }
 
