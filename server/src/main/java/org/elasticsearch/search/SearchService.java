@@ -1076,9 +1076,10 @@ public class SearchService extends AbstractLifecycleComponent implements IndexEv
     private void rewriteShardRequest(ShardSearchRequest request, ActionListener<ShardSearchRequest> listener) {
         IndexShard shard = indicesService.indexServiceSafe(request.shardId().getIndex()).getShard(request.shardId().id());
         Executor executor = getExecutor(shard);
+        ActionRunnable<ShardSearchRequest> supply = ActionRunnable.supply(listener, () -> request);
         ActionListener<Rewriteable> actionListener = ActionListener.wrap(r ->
                 // now we need to check if there is a pending refresh and register
-                shard.awaitShardSearchActive(b -> executor.execute(ActionRunnable.supply(listener, () -> request))),
+                shard.awaitShardSearchActive(b -> executor.execute(supply)),
             listener::onFailure);
         // we also do rewrite on the coordinating node (TransportSearchService) but we also need to do it here for BWC as well as
         // AliasFilters that might need to be rewritten. These are edge-cases but we are every efficient doing the rewrite here so it's not

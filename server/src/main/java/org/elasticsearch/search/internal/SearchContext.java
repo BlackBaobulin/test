@@ -365,7 +365,7 @@ public abstract class SearchContext extends AbstractRefCounted implements Releas
 
     public void clearReleasables(Lifetime lifetime) {
         if (clearables != null) {
-            List<List<Releasable>>releasables = new ArrayList<>();
+            List<List<Releasable>> releasables = new ArrayList<>();
             for (Lifetime lc : Lifetime.values()) {
                 if (lc.compareTo(lifetime) > 0) {
                     break;

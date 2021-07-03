@@ -1298,8 +1298,7 @@ public class IndicesService extends AbstractLifecycleComponent
             if (settings.getValue(IndicesRequestCache.INDEX_CACHE_REQUEST_ENABLED_SETTING) == false) {
                 return false;
             } else if (context.size() != 0) {
-                // If no request cache query parameter and shard request cache
-                // is enabled in settings don't cache for requests with size > 0
+                // If no request cache query parameter and shard request cache is enabled in settings don't cache for requests with size > 0
                 return false;
             }
         } else if (request.requestCache() == false) {
@@ -1308,8 +1307,7 @@ public class IndicesService extends AbstractLifecycleComponent
         // We use the cacheKey of the index reader as a part of a key of the IndicesRequestCache.
         assert context.searcher().getIndexReader().getReaderCacheHelper() != null;
 
-        // if now in millis is used (or in the future, a more generic "isDeterministic" flag
-        // then we can't cache based on "now" key within the search request, as it is not deterministic
+        // if now in millis is used (or in the future, a more generic "isDeterministic" flag then we can't cache based on "now" key within the search request, as it is not deterministic
         if (context.getQueryShardContext().isCacheable() == false) {
             return false;
         }

@@ -23,6 +23,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.apache.lucene.util.SetOnce;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.cluster.ClusterChangedEvent;
@@ -261,7 +262,7 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
 
     private void handleApplyCommit(ApplyCommitRequest applyCommitRequest, ActionListener<Void> applyListener) {
         synchronized (mutex) {
-            logger.trace("handleApplyCommit: applying commit {}", applyCommitRequest);
+            logger.info("handleApplyCommit: applying commit {}", applyCommitRequest);
 
             coordinationState.get().handleCommit(applyCommitRequest);
             final ClusterState committedState = hideStateIfNotRecovered(coordinationState.get().getLastAcceptedState());
@@ -1422,7 +1423,6 @@ public class Coordinator extends AbstractLifecycleComponent implements Discovery
                     for (Join receivedJoin : receivedJoins) {
                         CoordinatorPublication.this.handleAssociatedJoin(receivedJoin);
                     }
-//                    receivedJoins.forEach(CoordinatorPublication.this::handleAssociatedJoin);
                     assert receivedJoinsProcessed == false;
                     receivedJoinsProcessed = true;
 

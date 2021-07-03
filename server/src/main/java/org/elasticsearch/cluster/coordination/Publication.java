@@ -110,16 +110,18 @@ public abstract class Publication {
         /**
          * 已完成
          */
+        logger.info("=====================1");
         if (isCompleted) {
             return;
         }
-
+        logger.info("=====================2");
         /**
          * 是否还有未完成
          */
         if (cancelled == false) {
             for (final PublicationTarget target : publicationTargets) {
                 if (target.isActive()) {
+                    logger.info("节点{}还是激活状态=====================2-2",target.getDiscoveryNode().getName());
                     return;
                 }
             }
@@ -127,7 +129,7 @@ public abstract class Publication {
         /**
          *
          */
-        logger.info("======================onPossibleCompletion");
+        logger.info("======================3onPossibleCompletion");
         if (applyCommitRequest.isPresent() == false) {
             logger.debug("onPossibleCompletion: [{}] commit failed", this);
             assert isCompleted == false;
@@ -135,7 +137,7 @@ public abstract class Publication {
             onCompletion(false);
             return;
         }
-
+        logger.info("=====================4");
         assert isCompleted == false;
         isCompleted = true;
         onCompletion(true);
@@ -302,7 +304,7 @@ public abstract class Publication {
                         ackListener.onCommit(TimeValue.timeValueMillis(currentTimeSupplier.getAsLong() - startTime));
                         List<PublicationTarget> collect = publicationTargets.stream().filter(PublicationTarget::isWaitingForQuorum).collect(Collectors.toList());
                         for (PublicationTarget publicationTarget : collect) {
-                            logger.info("=====================告诉节点：{}，可以commit了",publicationTarget.getDiscoveryNode().getName());
+                            logger.info("=====================开始告诉节点：{}，可以commit了",publicationTarget.getDiscoveryNode().getName());
                             publicationTarget.sendApplyCommit();
                         }
 
@@ -429,6 +431,7 @@ public abstract class Publication {
 
             @Override
             public void onResponse(TransportResponse.Empty ignored) {
+                logger.info("=====================commit已经发送成功，响应处理：{}",discoveryNode.getName());
                 if (isFailed()) {
                     logger.debug("ApplyCommitResponseHandler.handleResponse: already failed, ignoring response from [{}]", discoveryNode);
                     return;

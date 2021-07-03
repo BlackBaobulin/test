@@ -109,6 +109,9 @@ public class PublicationTransportHandler {
             ApplyCommitRequest::new,
             (request, channel, task) -> handleApplyCommit.accept(request, transportCommitCallback(channel)));
 
+        /**
+         * zen1
+         */
         transportService.registerRequestHandler(PublishClusterStateAction.COMMIT_ACTION_NAME,
             ThreadPool.Names.GENERIC, false, false, PublishClusterStateAction.CommitClusterStateRequest::new,
             (request, channel, task) -> {
@@ -232,6 +235,7 @@ public class PublicationTransportHandler {
                     actionName = COMMIT_STATE_ACTION_NAME;
                     transportRequest = applyCommitRequest;
                 }
+                logger.info("=====================正在发送Apply COMMIT：{}",destination.getName());
                 transportService.sendRequest(destination, actionName, transportRequest, stateRequestOptions,
                     new TransportResponseHandler<TransportResponse.Empty>() {
 

@@ -143,7 +143,10 @@ public interface ActionListener<Response> {
      * @return a listener that maps the received response and then passes it to its delegate listener
      */
     static <T, Response> ActionListener<Response> map(ActionListener<T> listener, CheckedFunction<Response, T, Exception> fn) {
-        return wrap(r -> listener.onResponse(fn.apply(r)), listener::onFailure);
+        return wrap(r -> {
+            T apply = fn.apply(r);
+            listener.onResponse(apply);
+        }, listener::onFailure);
     }
 
     /**

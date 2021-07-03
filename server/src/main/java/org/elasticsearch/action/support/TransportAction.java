@@ -133,7 +133,7 @@ public abstract class TransportAction<Request extends ActionRequest, Response ex
 
     private static class RequestFilterChain<Request extends ActionRequest, Response extends ActionResponse>
             implements ActionFilterChain<Request, Response> {
-
+/
         private final TransportAction<Request, Response> action;
         private final AtomicInteger index = new AtomicInteger();
         private final Logger logger;

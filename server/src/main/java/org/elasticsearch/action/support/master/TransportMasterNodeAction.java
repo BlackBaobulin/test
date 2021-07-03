@@ -165,9 +165,10 @@ public abstract class TransportMasterNodeAction<Request extends MasterNodeReques
                             } else {
                                 delegatedListener.onFailure(t);
                             }
-                        });//masterOperration：主节点创建索引
+                        });
+                        ActionRunnable<Response> runnable = ActionRunnable.wrap(delegate, l -> masterOperation(task, request, clusterState, l));
                         threadPool.executor(executor)
-                            .execute(ActionRunnable.wrap(delegate, l -> masterOperation(task, request, clusterState, l)));
+                            .execute(runnable);
                     }
                 } else {
                     if (nodes.getMasterNode() == null) {

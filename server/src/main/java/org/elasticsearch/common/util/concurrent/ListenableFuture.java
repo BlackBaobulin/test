@@ -118,6 +118,7 @@ public final class ListenableFuture<V> extends BaseFuture<V> implements ActionLi
                 }
             });
         } catch (Exception e) {
+            e.printStackTrace();
             listener.onFailure(e);
         }
     }

@@ -326,7 +326,7 @@ public class QueryPhase implements SearchPhase {
             searchContext.getProfilers().getCurrentQueryProfiler().setCollector(profileCollector);
             queryCollector = profileCollector;
         } else {
-            queryCollector = QueryCollectorContext.createQueryCollector(collectors);
+             queryCollector = QueryCollectorContext.createQueryCollector(collectors);
         }
         QuerySearchResult queryResult = searchContext.queryResult();
         try {

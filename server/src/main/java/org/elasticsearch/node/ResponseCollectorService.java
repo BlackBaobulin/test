@@ -106,7 +106,7 @@ public final class ResponseCollectorService implements ClusterStateListener {
     /**
      * Struct-like class encapsulating a point-in-time snapshot of a particular
      * node's statistics. This includes the EWMA of queue size, response time,
-     * and service time.
+     * and service time.`
      */
     public static class ComputedNodeStats implements Writeable {
         // We store timestamps with nanosecond precision, however, the

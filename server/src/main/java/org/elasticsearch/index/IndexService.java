@@ -1002,7 +1002,7 @@ public class IndexService extends AbstractIndexComponent implements IndicesClust
     public static final Setting<TimeValue> GLOBAL_CHECKPOINT_SYNC_INTERVAL_SETTING =
             Setting.timeSetting(
                     "index.global_checkpoint_sync.interval",
-                    new TimeValue(30, TimeUnit.SECONDS),
+                    new TimeValue(3000, TimeUnit.SECONDS),
                     new TimeValue(0, TimeUnit.MILLISECONDS),
                     Property.Dynamic,
                     Property.IndexScope);
@@ -1011,7 +1011,7 @@ public class IndexService extends AbstractIndexComponent implements IndicesClust
     public static final Setting<TimeValue> RETENTION_LEASE_SYNC_INTERVAL_SETTING =
             Setting.timeSetting(
                     "index.soft_deletes.retention_lease.sync_interval",
-                    new TimeValue(30, TimeUnit.SECONDS),
+                    new TimeValue(3000, TimeUnit.SECONDS),
                     new TimeValue(0, TimeUnit.MILLISECONDS),
                     Property.Dynamic,
                     Property.IndexScope);
